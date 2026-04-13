@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Weekend Brief"/>
+  <title>Weekend Brief</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      min-height: 100vh;
+      padding-bottom: 140px;
+    }
+
+    /* ===== PASSWORD GATE ===== */
+    .lock-screen {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #1b2838 0%, #2d4a6f 50%, #3a7bd5 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 24px;
+    }
+    .lock-screen.hidden { display: none; }
+    .lock-icon { font-size: 3rem; margin-bottom: 16px; }
+    .lock-title { color: white; font-size: 1.4rem; font-weight: 800; margin-bottom: 6px; }
+    .lock-sub { color: rgba(255,255,255,0.6); font-size: 0.82rem; margin-bottom: 28px; }
+    .lock-input {
+      width: 220px;
+      padding: 14px 18px;
+      border-radius: 14px;
+      border: 2px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-align: center;
+      letter-spacing: 3px;
+      outline: none;
+      backdrop-filter: blur(8px);
+      -webkit-text-security: disc;
+    }
+    .lock-input::placeholder { color: rgba(255,255,255,0.3); letter-spacing: 1px; font-size: 0.85rem; }
+    .lock-input:focus { border-color: rgba(255,255,255,0.5); }
+    .lock-error {
+      color: #ff6b6b;
+      font-size: 0.78rem;
+      font-weight: 600;
+      margin-top: 12px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .lock-error.show { opacity: 1; }
+    .lock-enter {
+      margin-top: 20px;
+      background: rgba(255,255,255,0.15);
+      color: white;
+      border: 1.5px solid rgba(255,255,255,0.3);
+      padding: 12px 36px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .lock-enter:active { transform: scale(0.95); background: rgba(255,255,255,0.25); }
+
+    /* ===== MAIN APP (hidden until unlocked) ===== */
+    .app { display: none; }
+    .app.visible { display: block; }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #1b2838 0%, #2d4a6f 50%, #3a7bd5 100%);
+      color: white;
+      padding: 52px 20px 28px;
+      position: relative;
+      overflow: hidden;
+    }
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0; right: 0;
+      height: 24px;
+      background: #f5f5f7;
+      border-radius: 24px 24px 0 0;
+    }
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 4px;
+    }
+    .header h1 {
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      line-height: 1.15;
+    }
+    .header .date-pill {
+      background: rgba(255,255,255,0.18);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      white-space: nowrap;
+      backdrop-filter: blur(8px);
+    }
+
+    /* Person toggle */
+    .person-toggle {
+      display: flex;
+      gap: 6px;
+      margin: 10px 0 12px;
+    }
+    .person-btn {
+      padding: 6px 16px;
+      border-radius: 20px;
+      border: 1.5px solid rgba(255,255,255,0.3);
+      background: transparent;
+      color: rgba(255,255,255,0.7);
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .person-btn.active {
+      background: white;
+      color: #1b2838;
+      border-color: white;
+    }
+
+    /* Weather strip */
+    .weather-strip {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .weather-day {
+      flex: 1;
+      background: rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 10px 8px;
+      text-align: center;
+      backdrop-filter: blur(8px);
+    }
+    .weather-day .day-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      opacity: 0.7;
+    }
+    .weather-day .temp {
+      font-size: 1.4rem;
+      font-weight: 800;
+      margin: 2px 0;
+    }
+    .weather-day .desc {
+      font-size: 0.68rem;
+      opacity: 0.8;
+    }
+    .weather-day .icon { font-size: 1.3rem; margin-bottom: 2px; }
+
+    /* Tab bar */
+    .tab-bar {
+      display: flex;
+      background: white;
+      border-bottom: 1px solid #e5e5ea;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 14px 0 12px;
+      text-align: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #86868b;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .tab-btn.active {
+      color: #1b2838;
+      border-bottom-color: #3a7bd5;
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Section */
+    .section {
+      padding: 0 16px;
+      margin-bottom: 24px;
+    }
+    .section:first-child { margin-top: 16px; }
+    .section-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.1px;
+      color: #86868b;
+      margin-bottom: 12px;
+      padding-left: 4px;
+    }
+
+    /* Calendar callout */
+    .cal-callout {
+      background: linear-gradient(135deg, #1e6b3a, #2d8f4e);
+      color: white;
+      border-radius: 16px;
+      padding: 14px 16px;
+      margin: 16px 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .cal-callout .cal-icon { font-size: 1.6rem; flex-shrink: 0; }
+    .cal-callout .cal-text {
+      font-size: 0.82rem;
+      font-weight: 500;
+      line-height: 1.45;
+    }
+    .cal-callout .cal-text strong {
+      display: block;
+      font-size: 0.9rem;
+      margin-bottom: 1px;
+    }
+
+    /* Recommendation Card */
+    .rec-card {
+      background: white;
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      border: 1px solid rgba(0,0,0,0.04);
+      position: relative;
+      transition: transform 0.15s, opacity 0.2s;
+    }
+    .rec-card:active { transform: scale(0.985); }
+    .rec-card.dismissed { opacity: 0.35; }
+    .rec-card.dismissed .rec-body { text-decoration: line-through; text-decoration-color: #ccc; }
+
+    .rec-tag {
+      display: inline-block;
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .tag-saturday { background: #e8f4fd; color: #1a6fb5; }
+    .tag-sunday { background: #fef3e2; color: #b5761a; }
+    .tag-datenight { background: #f5e6f8; color: #8b3a9f; }
+    .tag-dontmiss { background: #fde8e8; color: #b52a2a; }
+    .tag-event { background: #e8fde8; color: #1a6b2a; }
+    .tag-family { background: #fff3e0; color: #e65100; }
+    .tag-food { background: #fce4ec; color: #c62828; }
+    .tag-concert { background: #e8eaf6; color: #283593; }
+    .tag-sports { background: #e0f2f1; color: #00695c; }
+    .tag-may { background: #e8f0fd; color: #1a4fb5; }
+    .tag-june { background: #f0e8fd; color: #5a1ab5; }
+    .tag-summer { background: #fdf5e8; color: #8b5a14; }
+
+    .rec-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 5px;
+      color: #1d1d1f;
+    }
+    .rec-body {
+      font-size: 0.85rem;
+      color: #424245;
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+    .rec-body strong { color: #1d1d1f; }
+
+    .rec-details {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 12px;
+    }
+    .rec-chip {
+      background: #f5f5f7;
+      color: #6e6e73;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 4px 9px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Feedback buttons */
+    .feedback-row {
+      display: flex;
+      gap: 6px;
+      border-top: 1px solid #f0f0f2;
+      padding-top: 10px;
+    }
+    .fb-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 9px 6px;
+      border-radius: 10px;
+      border: 1.5px solid #e5e5ea;
+      background: white;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #6e6e73;
+      cursor: pointer;
+      transition: all 0.15s;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .fb-btn:active { transform: scale(0.95); }
+    .fb-btn.selected { border-color: transparent; }
+    .fb-btn.selected.love { background: #e8f8ed; color: #1e7a3a; border-color: #b8e6c8; }
+    .fb-btn.selected.nope { background: #fde8e8; color: #b52a2a; border-color: #f5c4c4; }
+    .fb-btn.selected.swap { background: #e8f0fd; color: #1a5fb5; border-color: #b8d4f5; }
+    .fb-btn.selected.interested { background: #f5e6f8; color: #8b3a9f; border-color: #ddb8f5; }
+
+    /* Compact radar card */
+    .radar-card {
+      background: white;
+      border-radius: 16px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.05);
+      border: 1px solid rgba(0,0,0,0.04);
+      transition: transform 0.15s, opacity 0.2s;
+    }
+    .radar-card:active { transform: scale(0.985); }
+    .radar-card.dismissed { opacity: 0.35; }
+    .radar-card .radar-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 4px;
+    }
+    .radar-card .radar-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      line-height: 1.3;
+      color: #1d1d1f;
+      flex: 1;
+    }
+    .radar-card .radar-desc {
+      font-size: 0.8rem;
+      color: #6e6e73;
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+    .radar-card .radar-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+    .radar-vote {
+      display: flex;
+      gap: 8px;
+    }
+    .vote-btn {
+      width: 44px;
+      height: 38px;
+      border-radius: 10px;
+      border: 1.5px solid #e5e5ea;
+      background: white;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all 0.12s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .vote-btn:active { transform: scale(0.9); }
+    .vote-btn.selected.up { background: #e8f8ed; border-color: #b8e6c8; }
+    .vote-btn.selected.down { background: #fde8e8; border-color: #f5c4c4; }
+
+    /* Alert card */
+    .alert-card {
+      background: white;
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      border-left: 4px solid #ff6b6b;
+    }
+    .alert-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+    .alert-text { font-size: 0.82rem; color: #424245; line-height: 1.5; }
+    .alert-text strong { color: #1d1d1f; }
+    .alert-date {
+      font-size: 0.66rem;
+      color: #86868b;
+      font-weight: 600;
+      margin-top: 3px;
+    }
+
+    /* Plan Ahead card */
+    .plan-card {
+      background: white;
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      border: 1px solid rgba(0,0,0,0.04);
+    }
+    .plan-card .plan-when {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #86868b;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 6px;
+    }
+    .plan-card .plan-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .plan-card .plan-body {
+      font-size: 0.85rem;
+      color: #424245;
+      line-height: 1.55;
+      margin-bottom: 10px;
+    }
+
+    /* Feedback Summary Footer */
+    .feedback-footer {
+      position: fixed;
+      bottom: 0;
+      left: 0; right: 0;
+      background: white;
+      border-top: 1px solid #e5e5ea;
+      padding: 10px 16px;
+      padding-bottom: max(10px, env(safe-area-inset-bottom));
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 100;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+    }
+    .feedback-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .feedback-count {
+      font-size: 0.78rem;
+      color: #86868b;
+      font-weight: 500;
+    }
+    .feedback-count strong { color: #1d1d1f; }
+    .feedback-who {
+      font-size: 0.65rem;
+      color: #3a7bd5;
+      font-weight: 600;
+    }
+    .send-feedback-btn {
+      background: linear-gradient(135deg, #1b2838, #3a7bd5);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.15s;
+    }
+    .send-feedback-btn:active { transform: scale(0.95); }
+    .send-feedback-btn:disabled { opacity: 0.35; }
+    .send-feedback-btn.copied { background: #1e7a3a; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.9);
+      background: rgba(0,0,0,0.82);
+      color: white;
+      padding: 14px 24px;
+      border-radius: 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s;
+      z-index: 200;
+      backdrop-filter: blur(12px);
+      text-align: center;
+      max-width: 280px;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== PASSWORD GATE ===== -->
+<div class="lock-screen" id="lock-screen">
+  <div class="lock-icon">&#128274;</div>
+  <div class="lock-title">Weekend Brief</div>
+  <div class="lock-sub">Stevenson Family</div>
+  <input class="lock-input" id="lock-input" type="password" placeholder="passcode" maxlength="20" autocomplete="off" inputmode="text"/>
+  <div class="lock-error" id="lock-error">Wrong passcode</div>
+  <button class="lock-enter" id="lock-btn" onclick="tryUnlock()">Enter</button>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div class="app" id="app">
+
+<div class="header">
+  <div class="header-top">
+    <h1>Weekend Brief</h1>
+    <div class="date-pill">Apr 11 &#8211; 13</div>
+  </div>
+  <div class="person-toggle">
+    <button class="person-btn active" onclick="setPerson('John', this)">John</button>
+    <button class="person-btn" onclick="setPerson('Sara', this)">Sara</button>
+  </div>
+  <div class="weather-strip">
+    <div class="weather-day">
+      <div class="day-label">Fri</div>
+      <div class="icon">&#9728;&#65039;</div>
+      <div class="temp">77&#176;</div>
+      <div class="desc">Sunny</div>
+    </div>
+    <div class="weather-day">
+      <div class="day-label">Sat</div>
+      <div class="icon">&#9728;&#65039;</div>
+      <div class="temp">78&#176;</div>
+      <div class="desc">Warm &amp; clear</div>
+    </div>
+    <div class="weather-day">
+      <div class="day-label">Sun</div>
+      <div class="icon">&#127780;&#65039;</div>
+      <div class="temp">78&#176;</div>
+      <div class="desc">Partly cloudy</div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab bar -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('weekend', this)">This Weekend</button>
+  <button class="tab-btn" onclick="switchTab('radar', this)">On Our Radar</button>
+  <button class="tab-btn" onclick="switchTab('plan', this)">Plan Ahead</button>
+</div>
+
+<!-- ==================== TAB 1: THIS WEEKEND ==================== -->
+<div class="tab-content active" id="tab-weekend">
+
+  <div class="cal-callout">
+    <div class="cal-icon">&#9917;</div>
+    <div class="cal-text">
+      <strong>Charlotte FC vs Nashville SC</strong>
+      Saturday 7:30 PM &#183; Bank of America Stadium<br/>
+      Saturday daytime is open &#8212; evening is booked.
+    </div>
+  </div>
+
+  <!-- CLAUDE'S PICKS -->
+  <div class="section">
+    <div class="section-label">Claude's Picks</div>
+
+    <div class="rec-card" id="rec-1">
+      <div class="rec-tag tag-saturday">Saturday Morning</div>
+      <div class="rec-title">Strawberry Picking at Carrigan Farms</div>
+      <div class="rec-body">
+        Peak strawberry season and 78&#176; with full sun &#8212; textbook farm morning. U-pick is open through late April. The boys (6 &amp; 4) can pick their own, baby's fine in a carrier. <strong>Go early (9&#8211;10 AM) before it gets hot.</strong> Bring hats and sunscreen.
+        <br/><br/>
+        <strong>Invite idea:</strong> Grab a family with similar-age kids. Farm mornings are zero-pressure social time.
+      </div>
+      <div class="rec-details">
+        <span class="rec-chip">&#128205; Mooresville &#183; 30 min</span>
+        <span class="rec-chip">&#128118; Ages 2+</span>
+        <span class="rec-chip">&#127827; U-pick open</span>
+        <span class="rec-chip">&#9200; 9&#8211;11 AM</span>
+      </div>
+      <div class="feedback-row">
+        <button class="fb-btn love" onclick="toggle(this,'rec-1','love')" data-type="love">&#128077; Love it</button>
+        <button class="fb-btn nope" onclick="toggle(this,'rec-1','nope')" data-type="nope">&#128078; Not this</button>
+        <button class="fb-btn swap" onclick="toggle(this,'rec-1','swap')" data-type="swap">&#128260; Swap</button>
+      </div>
+    </div>
+
+    <div class="rec-card" id="rec-2">
+      <div class="rec-tag tag-saturday">Saturday Lunch</div>
+      <div class="rec-title">Eddie's Place</div>
+      <div class="rec-body">
+        10 minutes from Carrigan Farms heading back toward Charlotte. All-day breakfast, cheap, loud enough that nobody cares about your kids. <strong>The strawberry-picking-to-Eddie's pipeline is a proven family Saturday.</strong>
+      </div>
+      <div class="rec-details">
+        <span class="rec-chip">&#127860; Breakfast/American</span>
+        <span class="rec-chip">&#128118; Kid-friendly</span>
+        <span class="rec-chip">&#128176; $</span>
+      </div>
+      <div class="feedback-row">
+        <button class="fb-btn love" onclick="toggle(this,'rec-2','love')" data-type="love">&#128077; Love it</button>
+        <button class="fb-btn nope" onclick="toggle(this,'rec-2','nope')" data-type="nope">&#128078; Diff spot</button>
+        <button class="fb-btn swap" onclick="toggle(this,'rec-2','swap')" data-type="swap">&#128260; Swap</button>
+      </div>
+    </div>
+
+    <div class="rec-card" id="rec-3">
+      <div class="rec-tag tag-sunday">Sunday</div>
+      <div class="rec-title">Splash Pad + Greenway Bike Ride</div>
+      <div class="rec-body">
+        78&#176; and partly cloudy &#8212; ideal splash pad weather without the June heat. <strong>Cordelia Park</strong> (NoDa): zero-depth splash area, playgrounds, walking trails. The boys ride bikes on the <strong>Little Sugar Creek Greenway</strong> (flat, paved, wide) &#8212; then cool off. Grab lunch at <strong>Free Range Brewing</strong> across the street: kids' play area, food trucks, beer for you.
+      </div>
+      <div class="rec-details">
+        <span class="rec-chip">&#128166; Splash pad</span>
+        <span class="rec-chip">&#128690; Greenway bikes</span>
+        <span class="rec-chip">&#127866; Free Range Brewing</span>
+        <span class="rec-chip">&#128176; Free/cheap</span>
+      </div>
+      <div class="feedback-row">
+        <button class="fb-btn love" onclick="toggle(this,'rec-3','love')" data-type="love">&#128077; Love it</button>
+        <button class="fb-btn nope" onclick="toggle(this,'rec-3','nope')" data-type="nope">&#128078; Too much</button>
+        <button class="fb-btn swap" onclick="toggle(this,'rec-3','swap')" data-type="swap">&#128260; Swap</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DATE NIGHT -->
+  <div class="section">
+    <div class="section-label">Date Night Pick</div>
+
+    <div class="rec-card" id="rec-4">
+      <div class="rec-tag tag-datenight">Friday Night</div>
+      <div class="rec-title">Rada &#183; Myers Park</div>
+      <div class="rec-body">
+        Basque-leaning, globally influenced, noticed by the NY Times and Michelin. Dover sole, lamb bolognese, curated wine list. <strong>Intimate and interesting without being pretentious.</strong> Walk-friendly neighborhood after dinner. If you want a known quantity, Yunta or Stagioni are always solid.
+      </div>
+      <div class="rec-details">
+        <span class="rec-chip">&#127860; Basque/Global</span>
+        <span class="rec-chip">&#128205; Myers Park</span>
+        <span class="rec-chip">&#128176; $$$</span>
+        <span class="rec-chip">&#127769; Date night</span>
+      </div>
+      <div class="feedback-row">
+        <button class="fb-btn love" onclick="toggle(this,'rec-4','love')" data-type="love">&#128077; Love it</button>
+        <button class="fb-btn nope" onclick="toggle(this,'rec-4','nope')" data-type="nope">&#128078; Not feeling it</button>
+        <button class="fb-btn swap" onclick="toggle(this,'rec-4','swap')" data-type="swap">&#128260; Swap</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DON'T MISS -->
+  <div class="section">
+    <div class="section-label">Don't Miss</div>
+
+    <div class="alert-card">
+      <div class="alert-icon">&#127928;</div>
+      <div>
+        <div class="alert-text"><strong>MerleFest is in 12 days.</strong> Apr 23&#8211;26, Wilkesboro (~90 min). Alison Krauss &amp; Union Station, Old Crow Medicine Show. If you're going, lock plans now.</div>
+        <div class="alert-date">Apr 23&#8211;26</div>
+      </div>
+    </div>
+
+    <div class="alert-card">
+      <div class="alert-icon">&#9971;&#65039;</div>
+      <div>
+        <div class="alert-text"><strong>Truist Championship at Quail Hollow in 3.5 weeks.</strong> May 6&#8211;10. Kids FREE with your ticket. 72-player Signature Event.</div>
+        <div class="alert-date">May 6&#8211;10</div>
+      </div>
+    </div>
+
+    <div class="alert-card">
+      <div class="alert-icon">&#127928;</div>
+      <div>
+        <div class="alert-text"><strong>Sturgill + Tyler Childers &#8212; May 13.</strong> Concert of the spring. If you haven't bought tickets, do it this week.</div>
+        <div class="alert-date">May 13</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TAB 2: ON OUR RADAR ==================== -->
+<div class="tab-content" id="tab-radar">
+
+  <div class="section" style="margin-top:16px;">
+    <div class="section-label">This Weekend &#8212; Rate Everything</div>
+    <p style="font-size:0.78rem; color:#86868b; margin:-6px 0 14px 4px; line-height:1.45;">Thumbs up what interests you. Thumbs down what doesn't. This trains your brief every week.</p>
+
+    <!-- EVENTS THIS WEEKEND -->
+    <div class="radar-card" id="radar-1">
+      <div class="rec-tag tag-concert">Concert</div>
+      <div class="radar-top">
+        <div class="radar-title">The Spring Mix &#8212; Cory Wong, Snarky Puppy, Victor Wooten</div>
+      </div>
+      <div class="radar-desc">Funk/fusion/jazz outdoor festival. Sat 3 PM at The Amp Ballantyne. Doors at 2. Tickets ~$94.</div>
+      <div class="radar-meta">
+        <span class="rec-chip">&#127928; Funk/Jazz</span>
+        <span class="rec-chip">&#9200; Sat 3 PM</span>
+        <span class="rec-chip">&#128205; Ballantyne</span>
+      </div>
+      <div class="radar-vote">
+        <button class="vote-btn up" onclick="vote(this,'radar-1','up')">&#128077;</button>
+        <button class="vote-btn down" onclick="vote(this,'radar-1','down')">&#128078;</button>
+      </div>
+    </div>
+
+    <div class="radar-card" id="radar-2">
+      <div class="rec-tag tag-concert">Music</div>
+      <div class="radar-top">
+        <div class="radar-title">Tosco Music Party &#8212; Knight Theater</div>
+      </div>
+      <div class="radar-desc">Charlotte institution: rotating local musicians, sing-alongs, surprise guests. Sat 7:30 PM. Conflicts with CFC match.</div>
+      <div class="radar-meta">
+        <span class="rec-chip">&#127928; Live music</span>
+        <span class="rec-chip">&#9200; Sat 7:30 PM</span>
+        <span class="rec-chip">&#9888;&#65039; CFC conflict</span>
+      </div>
+      <div class="radar-vote">
+        <button class="vote-btn up" onclick="vote(this,'radar-2','up')">&#128077;</button>
+        <button class="vote-btn down" onclick="vote(this,'radar-2','down')">&#128078;</button>
+      </div>
+    </div>
+
+    <div class="radar-card" id="radar-3">
+      <div class="rec-tag tag-concert">Classical</div>
+      <div class="radar-top">
+        <div class="radar-title">Charlotte Symphony: Beethoven's Emperor Concerto</div>
+      </div>
+      <div class="radar-desc">Belk Theater, Fri &amp; Sat evening. The big piano concerto &#8212; grand, dramatic. Date night alternative.</div>
+      <div class="radar-meta">
+        <span class="rec-chip">&#127925; Classical</span>
+        <span class="rec-chip">&#128205; Uptown</span>
+        <span class="rec-chip">&#127769; Date night</span>
+      </div>
+      <div class="radar-vote">
+        <button class="vote-btn up" onclick="vote(this,'radar-3','up')">&#128077;</button>
+        <button class="vote-btn down" onclick="vote(this,'radar-3','down')">&#128078;</button>
+      </div>
+    </div>
+
+    <div class="radar-card" id="radar-4">
+      <div class="rec-tag tag-event">Theater</div>
+      <div class="radar-top">
+        <div class="radar-title">Stereophonic &#8212; Knight Theater</div>
+      </div>
+      <div class="radar-desc">5 Tony Awards including Best Play. A play about a rock band recording an album in the '70s. Smart, funny, critically acclaimed.</div>
+      <div class="radar-meta">
+        <span class="rec-chip">&#127917; 5 Tonys</span>
+        <span class="rec-chip">&#128205; Uptown</span>
+        <span class="rec-chip">&#127769; Date night</span>
+      </div>
+      <div class="radar-vote">
+        <button class="vote-btn up" onclick="vote(this,'radar-4','up')">&#128077;</button>
+        <button class="vote-btn down" onclick="vote(this,'radar-4','down')">&#128078;</button>
+      </div>
+    </div>
+
+    <div class="radar-card" id="radar-5">
+      <div class="rec-tag tag-sports">Hockey</div>
+      <div class="radar-top">
+        <div class="radar-title">Charlotte Checkers vs Hershey Bears &#8212; Pooch Party</div>
+      </div>
+      <div class="radar-desc">Sat 4 PM, Bojangles Coliseum. Checkers clinched playoffs. Bring your dog (or don't). Affordable family sports outing.</div>
+      <div class="radar-meta">
+        <span class="rec-chip">&#127954; Hockey</span>
+        <span class="rec-chip">&#9200; Sat 4 PM</span>
+        <span class="rec-chip">&#128054; Dog-friendly</span>
+      </div>
+      <div class="radar-vote">
+        <button class="vote-btn up" onclick="vote(this,'radar-5','up')">&#128077;</button>
+        <button class="vote-btn down" onclick="vote(this,'radar-5','down')">&#128078;</button>
+      </div>
+    </div>
+
+    <div class="radar-card" id="radar-6">
+      <div class="rec-tag tag-event">Festival</div>
+      <div class="radar-top">
+        <div class="radar-title">Charlotte SHOUT! &#8212; Art Installations &amp; Events</div>
+      </div>
+      <div class="radar-desc">Running through Apr 19. Free interactive art all over Uptown. Walk around with the kids, discover weird cool stuff. Zero planning needed.</div>
+      <div class="radar-meta">
+        <span class="rec-chip">&#127912; Interactive art</span>
+        <span class="rec-chip">&#128176; Free</span>
+        <span class="rec-chip">&#128118; All ages</span>
+      </div>
+      <div class="radar-vote">
+        <button class="vote-btn up" onclick="vote(this,'radar-6','up')">&#128077;</button>
+        <button class="vote-btn down" onclick="vote(this,'radar-6','down')">&#128078;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESTAURANTS TO TRY -->
+  <div class="section">
+    <div class="section-label">Restaurants &#8212; Worth Trying?</div>
+
+    <div class="radar-card" id="radar-r1">
+      <div class="rec-tag tag-food">New Restaurant</div>
+      <div class="radar-top">
+        <div class="radar-title">The Story of Mi Cari&#241;o &#8212; South End</div>
+      </div>
+      <div class="radar-desc">Mezcaler&#237;a + scratch Mexican small plates. 200+ agave spirits. Opened Jan 2026. Lively date night energy.</div>
+      <div class="radar-meta">
+        <span class="rec-chip">&#127790; Mexican/Mezcal</span>
+        <span class="rec-chip">&#128205; South End</span>
+        <span class="rec-chip">&#127769; Date night</span>
+      </div>
+      <div class="radar-vote">
+        <button class="vote-btn up" onclick="vote(this,'radar-r1','up')">&#128077;</button>
+        <button class="vote-btn down" onclick="vote(this,'radar-r1','down')">&#128078;</button>
+      </div>
+    </div>
+
+    <div class="radar-card" id="radar-r2">
+      <div class="rec-tag tag-food">Fine Dining</div>
+      <div class="radar-top">
+        <div class="radar-title">Albertine &#8212; Uptown</div>
+      </div>
+      <div class="radar-desc">Joe Kindred (5x James Beard semifinalist). Mediterranean-Southern. Seafood towers, luxe. Opened Sept 2025 &#8212; the major opening.</div>
+      <div class="radar-meta">
+        <span class="rec-chip">&#127860; Mediterranean</span>
+        <span class="rec-chip">&#128176; $$$$</span>
+        <span class="rec-chip">&#127769; Special occasion</span>
+      </div>
+      <div class="radar-vote">
+        <button class="vote-btn up" onclick="vote(this,'radar-r2','up')">&#128077;</button>
+        <button class="vote-btn down" onclick="vote(this,'radar-r2','down')">&#128078;</button>
+      </div>
+    </div>
+
+    <div class="radar-card" id="radar-r3">
+      <div class="rec-tag tag-food">Casual</div>
+      <div class="radar-top">
+        <div class="radar-title">Tipsy Pickle &#8212; Camp North End</div>
+      </div>
+      <div class="radar-desc">Tex-Mex + pickleball + golf sims + arcade. Built for families. Sunday afternoon play-and-eat vibes.</div>
+      <div class="radar-meta">
+        <span class="rec-chip">&#127934; Pickleball</span>
+        <span class="rec-chip">&#128118; Kid-friendly</span>
+        <span class="rec-chip">&#127790; Tex-Mex</span>
+      </div>
+      <div class="radar-vote">
+        <button class="vote-btn up" onclick="vote(this,'radar-r3','up')">&#128077;</button>
+        <button class="vote-btn down" onclick="vote(this,'radar-r3','down')">&#128078;</button>
+      </div>
+    </div>
+
+    <div class="radar-card" id="radar-r4">
+      <div class="rec-tag tag-food">Brunch</div>
+      <div class="radar-top">
+        <div class="radar-title">Dogwood &#8212; North End</div>
+      </div>
+      <div class="radar-desc">Fried Chicken Benny, Hangover Hash, free biscuit bar. Live music Sundays. Southern brunch done right.</div>
+      <div class="radar-meta">
+        <span class="rec-chip">&#127860; Southern brunch</span>
+        <span class="rec-chip">&#127928; Live music Sun</span>
+        <span class="rec-chip">&#128176; $$</span>
+      </div>
+      <div class="radar-vote">
+        <button class="vote-btn up" onclick="vote(this,'radar-r4','up')">&#128077;</button>
+        <button class="vote-btn down" onclick="vote(this,'radar-r4','down')">&#128078;</button>
+      </div>
+    </div>
+
+    <div class="radar-card" id="radar-r5">
+      <div class="rec-tag tag-food">Omakase</div>
+      <div class="radar-top">
+        <div class="radar-title">Kappo En &#8212; 10-Seat Japanese Omakase</div>
+      </div>
+      <div class="radar-desc">16-18 courses, $185/pp. Fish sourced from Japan. Intimate, singular. The kind of meal you remember.</div>
+      <div class="radar-meta">
+        <span class="rec-chip">&#127843; Japanese</span>
+        <span class="rec-chip">&#128176; $$$$</span>
+        <span class="rec-chip">&#127769; Special occasion</span>
+      </div>
+      <div class="radar-vote">
+        <button class="vote-btn up" onclick="vote(this,'radar-r5','up')">&#128077;</button>
+        <button class="vote-btn down" onclick="vote(this,'radar-r5','down')">&#128078;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTIVITIES TO RATE -->
+  <div class="section">
+    <div class="section-label">Activities &#8212; Interested?</div>
+
+    <div class="radar-card" id="radar-a1">
+      <div class="rec-tag tag-family">Family Outdoor</div>
+      <div class="radar-top">
+        <div class="radar-title">Reedy Creek Park &#8212; Fishing with Free Rod Rental</div>
+      </div>
+      <div class="radar-desc">3 stocked ponds, fishing pier, free rod &amp; reel rental for 24 hrs. Perfect starter fishing spot for the 6-year-old. No license needed under 16.</div>
+      <div class="radar-meta">
+        <span class="rec-chip">&#127907; Fishing</span>
+        <span class="rec-chip">&#128176; Free</span>
+        <span class="rec-chip">&#128118; Ages 4+</span>
+      </div>
+      <div class="radar-vote">
+        <button class="vote-btn up" onclick="vote(this,'radar-a1','up')">&#128077;</button>
+        <button class="vote-btn down" onclick="vote(this,'radar-a1','down')">&#128078;</button>
+      </div>
+    </div>
+
+    <div class="radar-card" id="radar-a2">
+      <div class="rec-tag tag-family">Family Outdoor</div>
+      <div class="radar-top">
+        <div class="radar-title">Whitewater Center &#8212; Early Explorers Program</div>
+      </div>
+      <div class="radar-desc">Ages 4-7: introductory outdoor activities, crafts, STEAM. Half-day option. Perfect for your boys' ages. Or just do the Sunset Pass (Fri only, $49).</div>
+      <div class="radar-meta">
+        <span class="rec-chip">&#9978;&#65039; Outdoor/STEAM</span>
+        <span class="rec-chip">&#128118; Ages 4-7</span>
+        <span class="rec-chip">&#128205; USNWC</span>
+      </div>
+      <div class="radar-vote">
+        <button class="vote-btn up" onclick="vote(this,'radar-a2','up')">&#128077;</button>
+        <button class="vote-btn down" onclick="vote(this,'radar-a2','down')">&#128078;</button>
+      </div>
+    </div>
+
+    <div class="radar-card" id="radar-a3">
+      <div class="rec-tag tag-family">Day Trip</div>
+      <div class="radar-top">
+        <div class="radar-title">Lazy 5 Ranch &#8212; Feed Giraffes &amp; Kangaroos</div>
+      </div>
+      <div class="radar-desc">750+ animals. Wagon rides. Feed kangaroos, giraffes, llamas from your hand. 30 min drive. Birthday party venue potential too.</div>
+      <div class="radar-meta">
+        <span class="rec-chip">&#129426; Animals</span>
+        <span class="rec-chip">&#128205; Mooresville &#183; 30 min</span>
+        <span class="rec-chip">&#128118; All ages</span>
+      </div>
+      <div class="radar-vote">
+        <button class="vote-btn up" onclick="vote(this,'radar-a3','up')">&#128077;</button>
+        <button class="vote-btn down" onclick="vote(this,'radar-a3','down')">&#128078;</button>
+      </div>
+    </div>
+
+    <div class="radar-card" id="radar-a4">
+      <div class="rec-tag tag-family">Playground</div>
+      <div class="radar-top">
+        <div class="radar-title">Pineville Lake Park &#8212; The All-in-One</div>
+      </div>
+      <div class="radar-desc">3 playgrounds, splash pad, zip line, walking trail, pond. Best mixed-age park in Charlotte. Low effort, high reward.</div>
+      <div class="radar-meta">
+        <span class="rec-chip">&#127904; Zip line</span>
+        <span class="rec-chip">&#128166; Splash pad</span>
+        <span class="rec-chip">&#128118; Mixed ages</span>
+      </div>
+      <div class="radar-vote">
+        <button class="vote-btn up" onclick="vote(this,'radar-a4','up')">&#128077;</button>
+        <button class="vote-btn down" onclick="vote(this,'radar-a4','down')">&#128078;</button>
+      </div>
+    </div>
+
+    <div class="radar-card" id="radar-a5">
+      <div class="rec-tag tag-datenight">Date Night Activity</div>
+      <div class="radar-top">
+        <div class="radar-title">Comedy Zone &#8212; Friday/Saturday Headliner</div>
+      </div>
+      <div class="radar-desc">Charlotte's only full-time comedy club. National touring acts Fri/Sat. Dinner + show option. Low-key date night that doesn't require dressing up.</div>
+      <div class="radar-meta">
+        <span class="rec-chip">&#128514; Stand-up</span>
+        <span class="rec-chip">&#128205; AvidXchange</span>
+        <span class="rec-chip">&#127769; Date night</span>
+      </div>
+      <div class="radar-vote">
+        <button class="vote-btn up" onclick="vote(this,'radar-a5','up')">&#128077;</button>
+        <button class="vote-btn down" onclick="vote(this,'radar-a5','down')">&#128078;</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TAB 3: PLAN AHEAD ==================== -->
+<div class="tab-content" id="tab-plan">
+
+  <div class="section" style="margin-top:20px;">
+    <div class="section-label">Lock In Soon &#8212; Tickets / Planning Needed</div>
+
+    <div class="plan-card" id="plan-1">
+      <div class="rec-tag tag-dontmiss">Action needed</div>
+      <div class="plan-when">Apr 23&#8211;26 &#183; 12 days away</div>
+      <div class="plan-title">&#127928; MerleFest &#8212; Wilkesboro, NC</div>
+      <div class="plan-body">Flagship regional bluegrass festival. Alison Krauss &amp; Union Station, Old Crow Medicine Show. 90 min drive. <strong>Requires: tickets, lodging if overnight, sitter if going without kids.</strong></div>
+      <div class="feedback-row">
+        <button class="fb-btn love" onclick="toggle(this,'plan-1','love')" data-type="love">&#128077; Going</button>
+        <button class="fb-btn nope" onclick="toggle(this,'plan-1','nope')" data-type="nope">&#128078; Skipping</button>
+        <button class="fb-btn interested" onclick="toggle(this,'plan-1','interested')" data-type="interested">&#128161; Maybe</button>
+      </div>
+    </div>
+
+    <div class="plan-card" id="plan-2">
+      <div class="rec-tag tag-may">May 6&#8211;10</div>
+      <div class="plan-when">4 weeks away</div>
+      <div class="plan-title">&#9971;&#65039; Truist Championship at Quail Hollow</div>
+      <div class="plan-body">PGA Signature Event. 72-player field, $20M purse. <strong>Kids FREE (ages 15 &amp; under, up to 2 per adult).</strong> Great family Sunday &#8212; bring the boys.</div>
+      <div class="feedback-row">
+        <button class="fb-btn love" onclick="toggle(this,'plan-2','love')" data-type="love">&#128077; Going</button>
+        <button class="fb-btn nope" onclick="toggle(this,'plan-2','nope')" data-type="nope">&#128078; Skip</button>
+        <button class="fb-btn interested" onclick="toggle(this,'plan-2','interested')" data-type="interested">&#128161; Maybe</button>
+      </div>
+    </div>
+
+    <div class="plan-card" id="plan-3">
+      <div class="rec-tag tag-may">May 13</div>
+      <div class="plan-when">5 weeks away</div>
+      <div class="plan-title">&#127928; Sturgill Simpson + Tyler Childers</div>
+      <div class="plan-body">A Good Look'n Tour at Skyla Credit Union Amphitheatre. <strong>This is the concert of the spring.</strong> Sitter required &#8212; this is a date night event.</div>
+      <div class="feedback-row">
+        <button class="fb-btn love" onclick="toggle(this,'plan-3','love')" data-type="love">&#128077; Getting tix</button>
+        <button class="fb-btn nope" onclick="toggle(this,'plan-3','nope')" data-type="nope">&#128078; Pass</button>
+        <button class="fb-btn interested" onclick="toggle(this,'plan-3','interested')" data-type="interested">&#128161; Maybe</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Date Nights Worth Planning</div>
+
+    <div class="plan-card" id="plan-4">
+      <div class="rec-tag tag-may">Late April / May</div>
+      <div class="plan-when">Book 2-3 weeks out</div>
+      <div class="plan-title">&#127860; Counter- &#183; Wesley Heights</div>
+      <div class="plan-body">NC's only Michelin Star + Green Star. 20-seat counter, $160&#8211;$375/pp. <strong>Closes permanently Sept 2032 &#8212; finite experience.</strong> Quarterly rotating menus.</div>
+      <div class="feedback-row">
+        <button class="fb-btn love" onclick="toggle(this,'plan-4','love')" data-type="love">&#128077; Book it</button>
+        <button class="fb-btn nope" onclick="toggle(this,'plan-4','nope')" data-type="nope">&#128078; Too pricey</button>
+        <button class="fb-btn interested" onclick="toggle(this,'plan-4','interested')" data-type="interested">&#128161; Someday</button>
+      </div>
+    </div>
+
+    <div class="plan-card" id="plan-5">
+      <div class="rec-tag tag-may">May 1</div>
+      <div class="plan-when">3.5 weeks away</div>
+      <div class="plan-title">&#128514; Chelsea Handler &#8212; Ovens Auditorium</div>
+      <div class="plan-body">High and Mighty tour. Pair with dinner at Supperland (Plaza Midwood, 10 min away) &#8212; wood-fired steakhouse in a restored church.</div>
+      <div class="feedback-row">
+        <button class="fb-btn love" onclick="toggle(this,'plan-5','love')" data-type="love">&#128077; Into it</button>
+        <button class="fb-btn nope" onclick="toggle(this,'plan-5','nope')" data-type="nope">&#128078; Not our thing</button>
+        <button class="fb-btn interested" onclick="toggle(this,'plan-5','interested')" data-type="interested">&#128161; Maybe</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Summer &#8212; Start Thinking About</div>
+
+    <div class="plan-card" id="plan-6">
+      <div class="rec-tag tag-summer">Jun 20</div>
+      <div class="plan-when">10 weeks away</div>
+      <div class="plan-title">&#127928; Chris Stapleton + Lainey Wilson + Allen Stone</div>
+      <div class="plan-body">All-American Road Show at Bank of America Stadium. <strong>This is the big one.</strong> Stadium show, 6 PM. Get tickets now.</div>
+      <div class="feedback-row">
+        <button class="fb-btn love" onclick="toggle(this,'plan-6','love')" data-type="love">&#128077; Must go</button>
+        <button class="fb-btn nope" onclick="toggle(this,'plan-6','nope')" data-type="nope">&#128078; Pass</button>
+        <button class="fb-btn interested" onclick="toggle(this,'plan-6','interested')" data-type="interested">&#128161; Checking $</button>
+      </div>
+    </div>
+
+    <div class="plan-card" id="plan-7">
+      <div class="rec-tag tag-summer">Jul 18&#8211;19</div>
+      <div class="plan-when">On sale now</div>
+      <div class="plan-title">&#128663; Monster Jam &#183; Spectrum Center</div>
+      <div class="plan-body">Sat noon + 6pm, Sun noon. <strong>Pit Party 9:30 AM &#8212; kids walk among the trucks.</strong> Birthday party potential for the boys.</div>
+      <div class="feedback-row">
+        <button class="fb-btn love" onclick="toggle(this,'plan-7','love')" data-type="love">&#128077; Buying tix</button>
+        <button class="fb-btn nope" onclick="toggle(this,'plan-7','nope')" data-type="nope">&#128078; Not this year</button>
+        <button class="fb-btn interested" onclick="toggle(this,'plan-7','interested')" data-type="interested">&#128161; Birthday idea?</button>
+      </div>
+    </div>
+
+    <div class="plan-card" id="plan-8">
+      <div class="rec-tag tag-summer">Jul 29</div>
+      <div class="plan-when">Charlotte hosts</div>
+      <div class="plan-title">&#9917; MLS All-Star Game</div>
+      <div class="plan-body">First time Charlotte hosts. Bank of America Stadium. <strong>Season ticket holder = priority access.</strong> Once-in-a-while event.</div>
+      <div class="feedback-row">
+        <button class="fb-btn love" onclick="toggle(this,'plan-8','love')" data-type="love">&#128077; Going</button>
+        <button class="fb-btn nope" onclick="toggle(this,'plan-8','nope')" data-type="nope">&#128078; Pass</button>
+        <button class="fb-btn interested" onclick="toggle(this,'plan-8','interested')" data-type="interested">&#128161; Need info</button>
+      </div>
+    </div>
+
+    <div class="plan-card" id="plan-camp">
+      <div class="rec-tag tag-summer">Jun&#8211;Aug</div>
+      <div class="plan-when">Register soon &#8212; fills up</div>
+      <div class="plan-title">&#9978;&#65039; Summer Camps for the Boys</div>
+      <div class="plan-body"><strong>Whitewater Center Early Explorers</strong> (ages 4&#8211;7). <strong>Charlotte Country Day</strong> Jun 8&#8211;Jul 24 (150+ programs). <strong>Discovery Place Science</strong> 20+ themes. Register now &#8212; popular sessions fill early.</div>
+      <div class="feedback-row">
+        <button class="fb-btn love" onclick="toggle(this,'plan-camp','love')" data-type="love">&#128077; On it</button>
+        <button class="fb-btn nope" onclick="toggle(this,'plan-camp','nope')" data-type="nope">&#128078; Already set</button>
+        <button class="fb-btn interested" onclick="toggle(this,'plan-camp','interested')" data-type="interested">&#128161; Need help</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sticky footer -->
+<div class="feedback-footer">
+  <div class="feedback-left">
+    <div class="feedback-count"><strong id="fb-count">0</strong> reactions</div>
+    <div class="feedback-who" id="fb-who">Reacting as John</div>
+  </div>
+  <button class="send-feedback-btn" id="send-btn" disabled onclick="copyFeedback()">Copy Feedback</button>
+</div>
+
+</div><!-- end .app -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ===== PASSWORD GATE =====
+  const PASSCODE = 'stevenson';
+
+  function tryUnlock() {
+    const input = document.getElementById('lock-input');
+    const err = document.getElementById('lock-error');
+    if (input.value.toLowerCase() === PASSCODE) {
+      document.getElementById('lock-screen').classList.add('hidden');
+      document.getElementById('app').classList.add('visible');
+      try { sessionStorage.setItem('wb_unlocked', '1'); } catch(e) {}
+    } else {
+      err.classList.add('show');
+      input.value = '';
+      input.focus();
+      setTimeout(() => err.classList.remove('show'), 2000);
+    }
+  }
+
+  // Auto-unlock if already authenticated this session
+  try {
+    if (sessionStorage.getItem('wb_unlocked') === '1') {
+      document.getElementById('lock-screen').classList.add('hidden');
+      document.getElementById('app').classList.add('visible');
+    }
+  } catch(e) {}
+
+  // Enter key to submit
+  document.getElementById('lock-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') tryUnlock();
+  });
+
+  // ===== APP STATE =====
+  const state = {};
+  let currentPerson = 'John';
+
+  function setPerson(name, btn) {
+    currentPerson = name;
+    document.querySelectorAll('.person-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('fb-who').textContent = 'Reacting as ' + name;
+    showToast(name + "'s feedback mode");
+  }
+
+  function switchTab(tabId, btn) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + tabId).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  // Full feedback toggle (for rec-cards and plan-cards)
+  function toggle(btn, recId, type) {
+    const card = btn.closest('.rec-card, .plan-card');
+    const row = btn.parentElement;
+    const buttons = row.querySelectorAll('.fb-btn');
+    const key = currentPerson + ':' + recId;
+
+    if (btn.classList.contains('selected')) {
+      btn.classList.remove('selected');
+      delete state[key];
+      if (card) card.classList.remove('dismissed');
+    } else {
+      buttons.forEach(b => b.classList.remove('selected'));
+      if (card) card.classList.remove('dismissed');
+      btn.classList.add('selected');
+      const title = card ? (card.querySelector('.rec-title') || card.querySelector('.plan-title')).textContent : recId;
+      state[key] = { type, title, person: currentPerson, label: btn.textContent.trim() };
+      if (type === 'nope' && card) card.classList.add('dismissed');
+    }
+    updateCount();
+  }
+
+  // Simple up/down vote (for radar cards)
+  function vote(btn, cardId, direction) {
+    const card = document.getElementById(cardId);
+    const buttons = card.querySelectorAll('.vote-btn');
+    const key = currentPerson + ':' + cardId;
+
+    if (btn.classList.contains('selected')) {
+      btn.classList.remove('selected');
+      delete state[key];
+      if (card) card.classList.remove('dismissed');
+    } else {
+      buttons.forEach(b => b.classList.remove('selected'));
+      if (card) card.classList.remove('dismissed');
+      btn.classList.add('selected');
+      const title = card.querySelector('.radar-title').textContent;
+      const tag = card.querySelector('.rec-tag') ? card.querySelector('.rec-tag').textContent : '';
+      state[key] = { type: direction, title, person: currentPerson, label: direction === 'up' ? '\u{1F44D}' : '\u{1F44E}', category: tag };
+      if (direction === 'down' && card) card.classList.add('dismissed');
+    }
+    updateCount();
+  }
+
+  function updateCount() {
+    const count = Object.keys(state).length;
+    document.getElementById('fb-count').textContent = count;
+    document.getElementById('send-btn').disabled = count === 0;
+  }
+
+  function copyFeedback() {
+    const lines = ['Weekend Brief Feedback \u2014 Apr 11-13, 2026', ''];
+    const grouped = { John: [], Sara: [] };
+
+    for (const [key, data] of Object.entries(state)) {
+      const person = data.person || 'John';
+      if (!grouped[person]) grouped[person] = [];
+      grouped[person].push(data);
+    }
+
+    for (const person of ['John', 'Sara']) {
+      if (grouped[person] && grouped[person].length > 0) {
+        lines.push('## ' + person + "'s Reactions:");
+        for (const d of grouped[person]) {
+          const icons = { love: '\u{1F44D}', nope: '\u{1F44E}', swap: '\u{1F504}', interested: '\u{1F4A1}', up: '\u{1F44D}', down: '\u{1F44E}' };
+          const cat = d.category ? ' [' + d.category + ']' : '';
+          lines.push((icons[d.type] || '') + ' ' + d.title + cat);
+        }
+        lines.push('');
+      }
+    }
+
+    lines.push('---');
+    lines.push('Paste this into Claude to update weekend-brief-preferences.md');
+
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      const btn = document.getElementById('send-btn');
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      showToast('Copied! Paste to Claude.');
+      setTimeout(() => {
+        btn.textContent = 'Copy Feedback';
+        btn.classList.remove('copied');
+      }, 2500);
+    });
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1800);
+  }
+</script>
+
+</body>
+</html>

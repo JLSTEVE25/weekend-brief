@@ -26,6 +26,10 @@ import anthropic
 AIRTABLE_API_KEY  = os.environ["AIRTABLE_API_KEY"]
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 
+# Google Apps Script feedback endpoint — set once deployed (GitHub Secret: FEEDBACK_ENDPOINT).
+# Leave blank until then; feedback buttons still work visually, just won't write back yet.
+FEEDBACK_ENDPOINT = os.environ.get("FEEDBACK_ENDPOINT", "")
+
 # Base IDs and table IDs are hardcoded (not secrets — just structural IDs).
 # API key is the only secret needed.
 RESTAURANTS_BASE_ID = "appyUA9SEI4R0grrH"
@@ -160,12 +164,14 @@ def parse_event_date(date_str):
 def main():
     print("📡 Fetching Airtable data…")
 
-    # Restaurants — exclude vetoed
+    # Restaurants — exclude Vetoed and Nope/Swap feedback
     restaurants = fetch_airtable(RESTAURANTS_BASE_ID,
-                                  filter_formula="NOT({Vetoed}='Yes')")
+                                  filter_formula="AND(NOT({Vetoed}='Yes'), NOT({Feedback}='Nope'), NOT({Feedback}='Swap'))")
 
-    # Events — all records; we'll filter by date in Python
-    all_events = fetch_airtable(EVENTS_BASE_ID)
+    # Events — all records; filter by date and Feedback in Python
+    all_events_raw = fetch_airtable(EVENTS_BASE_ID)
+    # Exclude Nope/Swap events upfront
+    all_events = [e for e in all_events_raw if e.get("Feedback", "") not in ("Nope", "Swap")]
 
     # Friends — Invite to Weekends = Yes, or Tier 1 & 2
     friends = fetch_airtable(FRIENDS_BASE_ID,
@@ -210,6 +216,33 @@ def main():
     system_prompt = """You are generating a Weekend Brief HTML page for the Stevenson family in Charlotte, NC.
 Return ONLY the complete, self-contained HTML. No markdown, no code fences, no explanation."""
 
+    # Build a friends lookup for matching to events
+    friends_summary = [
+        {
+            "name": f.get("Name", ""),
+            "kids_at_ccd": f.get("Kids at CCD", ""),
+            "invite_to_weekends": f.get("Invite to Weekends", ""),
+            "tier": f.get("Tier", ""),
+            "connection": f.get("Connection", ""),
+        }
+        for f in friends
+    ]
+
+    feedback_js = ""
+    if FEEDBACK_ENDPOINT:
+        feedback_js = f"""
+const FEEDBACK_ENDPOINT = "{FEEDBACK_ENDPOINT}";
+function sendFeedback(type, name, vote) {{
+  if (!FEEDBACK_ENDPOINT) return;
+  fetch(FEEDBACK_ENDPOINT, {{
+    method: "POST",
+    headers: {{"Content-Type": "application/json"}},
+    body: JSON.stringify({{type, name, vote}})
+  }}).catch(() => {{}});  // silent — never block the UI
+}}"""
+    else:
+        feedback_js = "function sendFeedback(type, name, vote) { /* endpoint not configured */ }"
+
     user_prompt = f"""
 Generate the Weekend Brief HTML for the weekend of {weekend_label}.
 
@@ -219,56 +252,71 @@ Generate the Weekend Brief HTML for the weekend of {weekend_label}.
 ## THIS WEEKEND EVENTS (next 14 days)
 {json.dumps(this_weekend_events, indent=2)}
 
-## ON OUR RADAR (15–75 days out)
-{json.dumps(radar_events[:20], indent=2)}
+## COMING UP — EVENTS (15–75 days out)
+{json.dumps(radar_events[:25], indent=2)}
 
-## RESTAURANTS (full list — use for curated picks)
+## RESTAURANTS (full list — use for curated picks this weekend)
 {json.dumps(restaurants, indent=2)}
 
-## FRIENDS / FAMILIES (Tier 1 & 2 — for "who to invite" callouts)
-{json.dumps(friends, indent=2)}
+## FRIENDS / FAMILIES (for "who to invite" callouts on events)
+{json.dumps(friends_summary, indent=2)}
+
+## FEEDBACK JAVASCRIPT (inject exactly as-is into the <script> block)
+{feedback_js}
 
 ## DESIGN REQUIREMENTS
 
-Produce a complete, self-contained, mobile-first HTML file that exactly replicates the design
-of the existing Weekend Brief. Key requirements:
+Produce a complete, self-contained, mobile-first HTML file. Key requirements:
 
 1.  **Password gate** — passcode is "stevenson". On correct entry, show the main app div.
 
 2.  **Header** — navy-to-blue gradient. Shows "Weekend Brief", date pill (e.g. "Apr 19 – 20"),
-    John/Sara person toggle, and a 3-day weather strip (Fri/Sat/Sun) using the weather data above.
+    John/Sara person toggle, and a 3-day weather strip (Fri/Sat/Sun) from the weather data above.
 
-3.  **Tab bar** — 3 tabs: "This Weekend" | "On Our Radar" | "Plan Ahead"
+3.  **Tab bar — 2 tabs only:** "This Weekend" | "Coming Up"
 
 4.  **This Weekend tab**
-    - Calendar callout (green card) if there's a significant event this weekend
-    - 3–4 curated rec-cards: pick the best restaurant/activity combos for the weather.
-      Each card has: tag pill (Saturday/Sunday/Date Night/Family), title, body text (2–3 sentences,
-      personalized, specific), detail chips (neighborhood, price, kids-friendly), feedback row.
-    - John mode = include kids-friendly places; Sara mode = emphasize date-night picks.
+    - Calendar callout (green card) if there's a notable event this weekend.
+    - 3–4 curated rec-cards: restaurant/activity combos suited to the weather and family context.
+      Each card has: tag pill (Saturday/Sunday/Date Night/Family), title, 2–3 sentence body,
+      detail chips (neighborhood, price, kids-friendly), feedback row.
+    - Each card has a data-name attribute (exact restaurant/event name) and data-type ("restaurant"/"event").
+    - John mode = kids-friendly places; Sara mode = date-night emphasis.
 
-5.  **On Our Radar tab** — radar-cards for upcoming events within 75 days + interesting restaurants
-    the family hasn't tried. Compact layout.
+5.  **Coming Up tab** — all upcoming events from 15–75 days out, sorted by date.
+    - Use radar-cards (compact layout). Each shows: date, event name, venue, price range.
+    - For each event, add a "Who to invite" chip if friends match:
+      Kids Friendly event → suggest families where Kids at CCD = Yes.
+      Date Night / adult event → suggest couples (no kids mention).
+      Match by name from the friends list.
+    - Each card has a data-name and data-type="event" attribute.
+    - Feedback row on each card.
 
-6.  **Plan Ahead tab** — events 30–75 days out. Concise list with dates and action notes.
+6.  **Feedback behavior (CRITICAL)**
+    - Four buttons per card: Love it ❤️ / Nope 👎 / Interested 👀 / Swap 🔄
+    - Every button tap: (1) toggle visual selected state, (2) call sendFeedback(type, name, vote).
+    - vote strings: "love", "nope", "interested", "swap" — all lowercase.
+    - type and name come from the card's data-type and data-name attributes.
+    - Nope and Swap → item disappears from next Monday's brief automatically (handled server-side).
+    - Love → item gets priority placement next week.
+    - Interested → item stays visible, flagged for follow-up.
+    - Inject the FEEDBACK JAVASCRIPT block exactly as provided above.
 
-7.  **Feedback footer** — sticky bottom bar showing reaction count and a "Copy Feedback" button.
+7.  **Feedback footer** — sticky bottom bar: reaction count + "Copy Feedback" button.
 
-8.  **CSS** — use the existing Weekend Brief palette exactly:
+8.  **CSS palette:**
     - Header gradient: #1b2838 → #2d4a6f → #3a7bd5
     - Background: #f5f5f7
     - Cards: white, border-radius 18px, subtle shadow
-    - Tag colors: Saturday=#e8f4fd/#1a6fb5, Sunday=#fef3e2/#b5761a,
-                  Date Night=#f5e6f8/#8b3a9f, Family=#fff3e0/#e65100,
-                  Event=#e8fde8/#1a6b2a, Concert=#e8eaf6/#283593
+    - Tags: Saturday=#e8f4fd/#1a6fb5, Sunday=#fef3e2/#b5761a,
+            Date Night=#f5e6f8/#8b3a9f, Family=#fff3e0/#e65100,
+            Event=#e8fde8/#1a6b2a, Concert=#e8eaf6/#283593
 
-9.  **JS** — implement: password unlock, tab switching, John/Sara toggle (hide/show cards),
-    feedback button toggling (love/nope/swap/interested), reaction count, copyFeedback().
+9.  **JS** — password unlock, tab switching, John/Sara toggle, feedback toggling,
+    reaction count, copyFeedback(). No external libraries. All inline.
 
-10. The HTML must work offline (no external JS libraries). All CSS and JS inline in <style>/<script>.
-
-Write vivid, specific, local copy. Reference real Charlotte spots by name. Match the tone of
-a knowledgeable friend who knows the family well (two young boys, mix of family and date-night needs).
+Write vivid, specific Charlotte copy. Two young boys. Mix of family days and date nights.
+Tone: knowledgeable friend, not a concierge.
 """
 
     print("🤖 Calling Claude API to generate HTML…")

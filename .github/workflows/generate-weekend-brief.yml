@@ -1,0 +1,60 @@
+# Weekend Brief — GitHub Actions Workflow
+# =========================================
+# Runs every Monday at 10 AM ET so the family has all week to
+# review picks before the weekend.
+#
+# SETUP (one-time, in GitHub repo Settings → Secrets → Actions):
+#   AIRTABLE_API_KEY   — Airtable Personal Access Token
+#                        (airtable.com → Account → Developer Hub → Personal access tokens)
+#   ANTHROPIC_API_KEY  — Claude API key (console.anthropic.com)
+#
+# That's it — base IDs and table IDs are hardcoded in generate_brief.py (not sensitive).
+#
+# FILE PLACEMENT in your GitHub repo:
+#   .github/workflows/generate-weekend-brief.yml   ← this file
+#   generate_brief.py                              ← at repo root
+#
+# Manual trigger: GitHub → Actions tab → "Generate Weekend Brief" → Run workflow
+
+name: Generate Weekend Brief
+
+on:
+  schedule:
+    - cron: '0 14 * * 1'   # Every Monday at 14:00 UTC = 10:00 AM ET
+  workflow_dispatch:         # Also triggerable manually from the Actions tab
+
+jobs:
+  generate:
+    name: Pull Airtable → Generate HTML → Commit
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write   # Needed to push the updated HTML back to the repo
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install requests anthropic
+
+      - name: Generate Weekend Brief
+        env:
+          AIRTABLE_API_KEY:  ${{ secrets.AIRTABLE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python generate_brief.py
+
+      - name: Commit and push updated brief
+        run: |
+          git config --global user.name  "Weekend Brief Bot"
+          git config --global user.email "weekend-brief-bot@users.noreply.github.com"
+          git add index.html personal-assistant/weekend_brief.html
+          # Only commit if something actually changed
+          git diff --staged --quiet || git commit -m "🏡 Weekend Brief — $(date -u '+%B %d, %Y')"
+          git push

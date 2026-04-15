@@ -232,16 +232,19 @@ Return ONLY the complete, self-contained HTML. No markdown, no code fences, no e
     if FEEDBACK_ENDPOINT:
         feedback_js = f"""
 const FEEDBACK_ENDPOINT = "{FEEDBACK_ENDPOINT}";
-function sendFeedback(type, name, vote) {{
-  if (!FEEDBACK_ENDPOINT) return;
+function sendFeedback(type, name, vote, person) {{
   fetch(FEEDBACK_ENDPOINT, {{
     method: "POST",
     headers: {{"Content-Type": "application/json"}},
-    body: JSON.stringify({{type, name, vote}})
-  }}).catch(() => {{}});  // silent — never block the UI
+    body: JSON.stringify({{type, name, vote, person}})
+  }}).then(r => r.json())
+    .then(d => showToast(d.ok ? "✓ Saved" : "⚠ Not saved"))
+    .catch(() => showToast("⚠ No connection"));
 }}"""
     else:
-        feedback_js = "function sendFeedback(type, name, vote) { /* endpoint not configured */ }"
+        feedback_js = f"""
+const FEEDBACK_ENDPOINT = "";
+function sendFeedback(type, name, vote, person) {{ /* endpoint not configured */ }}"""
 
     user_prompt = f"""
 Generate the Weekend Brief HTML for the weekend of {weekend_label}.
@@ -294,15 +297,16 @@ Produce a complete, self-contained, mobile-first HTML file. Key requirements:
 
 6.  **Feedback behavior (CRITICAL)**
     - Four buttons per card: Love it ❤️ / Nope 👎 / Interested 👀 / Swap 🔄
-    - Every button tap: (1) toggle visual selected state, (2) call sendFeedback(type, name, vote).
+    - Every button tap: (1) toggle visual selected state, (2) call sendFeedback(type, name, vote, currentPerson).
     - vote strings: "love", "nope", "interested", "swap" — all lowercase.
-    - type and name come from the card's data-type and data-name attributes.
+    - type ("restaurant" or "event") and name come from the card's data-type and data-name attributes.
     - Nope and Swap → item disappears from next Monday's brief automatically (handled server-side).
     - Love → item gets priority placement next week.
     - Interested → item stays visible, flagged for follow-up.
     - Inject the FEEDBACK JAVASCRIPT block exactly as provided above.
 
-7.  **Feedback footer** — sticky bottom bar: reaction count + "Copy Feedback" button.
+7.  **Feedback footer** — sticky bottom bar showing reaction count only. No "Copy Feedback" button —
+    feedback is sent automatically on every tap via sendFeedback().
 
 8.  **CSS palette:**
     - Header gradient: #1b2838 → #2d4a6f → #3a7bd5
@@ -313,7 +317,7 @@ Produce a complete, self-contained, mobile-first HTML file. Key requirements:
             Event=#e8fde8/#1a6b2a, Concert=#e8eaf6/#283593
 
 9.  **JS** — password unlock, tab switching, John/Sara toggle, feedback toggling,
-    reaction count, copyFeedback(). No external libraries. All inline.
+    reaction count, showToast(). No copyFeedback(). No external libraries. All inline.
 
 Write vivid, specific Charlotte copy. Two young boys. Mix of family days and date nights.
 Tone: knowledgeable friend, not a concierge.

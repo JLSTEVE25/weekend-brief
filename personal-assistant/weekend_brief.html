@@ -3,127 +3,124 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Stevenson Weekend Brief — Apr 18–19</title>
+<title>Stevenson Weekend Brief</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#f5f5f7;color:#1a1a1a;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f7; color: #1a1a1a; min-height: 100vh; }
 
 /* PASSWORD GATE */
-#gate{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1b2838 0%,#2d4a6f 50%,#3a7bd5 100%)}
-#gate .gate-box{background:#fff;border-radius:24px;padding:40px 32px;text-align:center;width:min(340px,90vw);box-shadow:0 20px 60px rgba(0,0,0,.3)}
-#gate h1{font-size:22px;font-weight:700;margin-bottom:6px;color:#1b2838}
-#gate p{font-size:14px;color:#666;margin-bottom:24px}
-#gate input{width:100%;padding:14px 16px;border:2px solid #ddd;border-radius:12px;font-size:16px;text-align:center;letter-spacing:3px;outline:none;transition:border .2s}
-#gate input:focus{border-color:#3a7bd5}
-#gate .gate-btn{margin-top:16px;width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#2d4a6f,#3a7bd5);color:#fff;font-size:16px;font-weight:600;cursor:pointer}
-#gate .gate-err{color:#e53935;font-size:13px;margin-top:10px;display:none}
+.pw-gate { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #1b2838, #2d4a6f, #3a7bd5); padding: 20px; }
+.pw-box { background: white; border-radius: 24px; padding: 40px 32px; text-align: center; max-width: 340px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.pw-box h1 { font-size: 22px; font-weight: 700; color: #1b2838; margin-bottom: 6px; }
+.pw-box p { font-size: 14px; color: #888; margin-bottom: 24px; }
+.pw-box input { width: 100%; padding: 14px 16px; border: 2px solid #e0e0e0; border-radius: 12px; font-size: 16px; text-align: center; outline: none; transition: border-color .2s; }
+.pw-box input:focus { border-color: #3a7bd5; }
+.pw-box button { width: 100%; margin-top: 14px; padding: 14px; background: linear-gradient(135deg, #2d4a6f, #3a7bd5); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
+.pw-error { color: #e53935; font-size: 13px; margin-top: 10px; display: none; }
 
 /* MAIN APP */
-#app{display:none}
+.app { display: none; padding-bottom: 80px; }
 
 /* HEADER */
-.header{background:linear-gradient(135deg,#1b2838 0%,#2d4a6f 40%,#3a7bd5 100%);color:#fff;padding:20px 16px 14px;position:sticky;top:0;z-index:100}
-.header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.header-title{font-size:20px;font-weight:700;letter-spacing:-0.3px}
-.date-pill{background:rgba(255,255,255,.18);border-radius:20px;padding:5px 14px;font-size:13px;font-weight:600}
-.persona-toggle{display:flex;background:rgba(255,255,255,.12);border-radius:20px;overflow:hidden;margin-bottom:12px}
-.persona-btn{flex:1;padding:8px 0;text-align:center;font-size:14px;font-weight:600;border:none;background:transparent;color:rgba(255,255,255,.55);cursor:pointer;transition:all .25s}
-.persona-btn.active{background:rgba(255,255,255,.22);color:#fff;border-radius:20px}
+.header { background: linear-gradient(135deg, #1b2838, #2d4a6f, #3a7bd5); padding: 20px 20px 16px; color: white; }
+.header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.header-title { font-size: 22px; font-weight: 700; }
+.date-pill { background: rgba(255,255,255,0.2); padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; backdrop-filter: blur(10px); }
+.person-toggle { display: flex; background: rgba(255,255,255,0.15); border-radius: 12px; padding: 3px; margin-bottom: 16px; backdrop-filter: blur(10px); }
+.person-btn { flex: 1; padding: 8px 0; text-align: center; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .2s; border: none; background: transparent; color: rgba(255,255,255,0.6); }
+.person-btn.active { background: white; color: #1b2838; }
+.weather-strip { display: flex; gap: 8px; }
+.weather-day { flex: 1; background: rgba(255,255,255,0.12); border-radius: 14px; padding: 10px 6px; text-align: center; backdrop-filter: blur(10px); }
+.weather-day .day-label { font-size: 11px; font-weight: 600; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; }
+.weather-day .weather-icon { font-size: 26px; margin: 4px 0; }
+.weather-day .temps { font-size: 13px; font-weight: 600; }
+.weather-day .temps span { opacity: 0.6; font-weight: 400; }
+.weather-day .rain { font-size: 11px; opacity: 0.7; margin-top: 2px; }
 
-/* WEATHER STRIP */
-.weather-strip{display:flex;gap:8px}
-.weather-day{flex:1;background:rgba(255,255,255,.1);border-radius:14px;padding:10px 6px;text-align:center}
-.weather-day.today{background:rgba(255,255,255,.22)}
-.weather-label{font-size:11px;font-weight:600;opacity:.75}
-.weather-icon{font-size:24px;margin:4px 0}
-.weather-temps{font-size:13px;font-weight:600}
-.weather-temps span{opacity:.6;font-weight:400}
-.weather-rain{font-size:10px;opacity:.6;margin-top:2px}
-
-/* TAB BAR */
-.tab-bar{display:flex;background:#fff;border-bottom:1px solid #e8e8e8;position:sticky;top:0;z-index:90;margin-top:-1px}
-.tab-btn{flex:1;padding:14px 0;text-align:center;font-size:15px;font-weight:600;border:none;background:none;color:#999;cursor:pointer;position:relative;transition:color .2s}
-.tab-btn.active{color:#1b2838}
-.tab-btn.active::after{content:"";position:absolute;bottom:0;left:20%;right:20%;height:3px;background:linear-gradient(90deg,#2d4a6f,#3a7bd5);border-radius:3px}
-
-/* CONTENT */
-.tab-content{display:none;padding:16px;padding-bottom:100px}
-.tab-content.active{display:block}
+/* TABS */
+.tab-bar { display: flex; background: white; border-bottom: 1px solid #e8e8e8; position: sticky; top: 0; z-index: 100; }
+.tab-btn { flex: 1; padding: 14px 0; text-align: center; font-size: 15px; font-weight: 600; color: #999; cursor: pointer; border: none; background: none; border-bottom: 3px solid transparent; transition: all .2s; }
+.tab-btn.active { color: #1b2838; border-bottom-color: #3a7bd5; }
+.tab-panel { display: none; padding: 16px; }
+.tab-panel.active { display: block; }
 
 /* CALENDAR CALLOUT */
-.cal-card{background:linear-gradient(135deg,#e8fde8,#d4f5d4);border-radius:18px;padding:18px;margin-bottom:18px;border:1px solid rgba(26,107,42,.12)}
-.cal-card .cal-badge{display:inline-block;background:#1a6b2a;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
-.cal-card h3{font-size:17px;font-weight:700;color:#1a5c25;margin-bottom:4px}
-.cal-card p{font-size:14px;color:#2a6b32;line-height:1.5}
+.callout-card { background: linear-gradient(135deg, #e8f5e9, #c8e6c9); border-radius: 18px; padding: 18px; margin-bottom: 16px; border-left: 5px solid #43a047; }
+.callout-label { font-size: 11px; font-weight: 700; color: #2e7d32; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.callout-title { font-size: 17px; font-weight: 700; color: #1b5e20; margin-bottom: 4px; }
+.callout-body { font-size: 14px; color: #33691e; line-height: 1.5; }
 
 /* REC CARDS */
-.rec-card{background:#fff;border-radius:18px;box-shadow:0 2px 12px rgba(0,0,0,.06);padding:18px;margin-bottom:16px;border:1px solid rgba(0,0,0,.04)}
-.rec-tag{display:inline-block;font-size:11px;font-weight:700;padding:4px 10px;border-radius:10px;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
-.tag-saturday{background:#e8f4fd;color:#1a6fb5}
-.tag-sunday{background:#fef3e2;color:#b5761a}
-.tag-datenight{background:#f5e6f8;color:#8b3a9f}
-.tag-family{background:#fff3e0;color:#e65100}
-.tag-event{background:#e8fde8;color:#1a6b2a}
-.tag-concert{background:#e8eaf6;color:#283593}
-.rec-card h3{font-size:17px;font-weight:700;margin-bottom:6px;color:#1b2838}
-.rec-card .rec-body{font-size:14px;color:#555;line-height:1.55;margin-bottom:12px}
-.detail-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
-.chip{background:#f0f0f2;color:#555;font-size:11px;font-weight:600;padding:4px 10px;border-radius:8px}
-.chip.kids-yes{background:#e8fde8;color:#1a6b2a}
-.chip.kids-no{background:#fde8e8;color:#b51a1a}
-
-/* RADAR CARDS (Coming Up) */
-.radar-card{background:#fff;border-radius:18px;box-shadow:0 2px 12px rgba(0,0,0,.06);padding:16px;margin-bottom:14px;border:1px solid rgba(0,0,0,.04)}
-.radar-date{font-size:12px;font-weight:700;color:#3a7bd5;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-.radar-card h3{font-size:16px;font-weight:700;color:#1b2838;margin-bottom:4px}
-.radar-venue{font-size:13px;color:#777;margin-bottom:8px}
-.radar-meta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
-.invite-section{margin-bottom:10px}
-.invite-label{font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-.invite-chips{display:flex;flex-wrap:wrap;gap:5px}
-.invite-chip{background:#f0e8fd;color:#6b3a9f;font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px}
+.rec-card { background: white; border-radius: 18px; padding: 20px; margin-bottom: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+.rec-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.tag { padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.tag-saturday { background: #e8f4fd; color: #1a6fb5; }
+.tag-sunday { background: #fef3e2; color: #b5761a; }
+.tag-datenight { background: #f5e6f8; color: #8b3a9f; }
+.tag-family { background: #fff3e0; color: #e65100; }
+.tag-event { background: #e8fde8; color: #1a6b2a; }
+.tag-concert { background: #e8eaf6; color: #283593; }
+.rec-title { font-size: 18px; font-weight: 700; color: #1b2838; margin-bottom: 8px; }
+.rec-body { font-size: 14px; color: #555; line-height: 1.6; margin-bottom: 12px; }
+.detail-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.chip { background: #f0f0f5; padding: 4px 10px; border-radius: 8px; font-size: 11px; color: #666; font-weight: 500; }
 
 /* FEEDBACK ROW */
-.fb-row{display:flex;gap:6px;flex-wrap:wrap}
-.fb-btn{display:flex;align-items:center;gap:4px;padding:7px 12px;border-radius:12px;border:1.5px solid #e0e0e0;background:#fafafa;font-size:12px;font-weight:600;color:#555;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
-.fb-btn:active{transform:scale(.95)}
-.fb-btn.sel-love{border-color:#e53935;background:#fde8e8;color:#c62828}
-.fb-btn.sel-nope{border-color:#757575;background:#f0f0f0;color:#424242}
-.fb-btn.sel-interested{border-color:#f9a825;background:#fff8e1;color:#f57f17}
-.fb-btn.sel-swap{border-color:#42a5f5;background:#e3f2fd;color:#1565c0}
+.feedback-row { display: flex; gap: 6px; }
+.fb-btn { flex: 1; padding: 8px 4px; border: 2px solid #e8e8e8; border-radius: 10px; background: white; font-size: 12px; cursor: pointer; transition: all .15s; text-align: center; }
+.fb-btn:active { transform: scale(0.95); }
+.fb-btn.selected-love { background: #fde8e8; border-color: #e53935; }
+.fb-btn.selected-nope { background: #f5f5f5; border-color: #999; }
+.fb-btn.selected-interested { background: #e8f4fd; border-color: #1a6fb5; }
+.fb-btn.selected-swap { background: #fff3e0; border-color: #e65100; }
 
-/* FEEDBACK FOOTER */
-.fb-footer{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e0e0e0;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;z-index:100;box-shadow:0 -2px 12px rgba(0,0,0,.06)}
-.fb-count{font-size:14px;font-weight:600;color:#555}
-.fb-count span{color:#3a7bd5}
-.copy-btn{padding:10px 20px;border-radius:12px;border:none;background:linear-gradient(135deg,#2d4a6f,#3a7bd5);color:#fff;font-size:14px;font-weight:600;cursor:pointer}
-.copy-btn.copied{background:#43a047}
+/* RADAR CARDS (Coming Up) */
+.radar-card { background: white; border-radius: 18px; padding: 16px 18px; margin-bottom: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+.radar-date { font-size: 11px; font-weight: 700; color: #3a7bd5; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+.radar-title { font-size: 16px; font-weight: 700; color: #1b2838; margin-bottom: 4px; }
+.radar-venue { font-size: 13px; color: #888; margin-bottom: 8px; }
+.radar-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.invite-chip { background: #fffde7; border: 1px solid #fdd835; padding: 4px 10px; border-radius: 8px; font-size: 11px; color: #f57f17; font-weight: 600; }
+.radar-note { font-size: 12px; color: #e65100; font-weight: 600; font-style: italic; margin-bottom: 8px; }
+
+/* FOOTER */
+.feedback-footer { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #e8e8e8; padding: 12px 20px; text-align: center; font-size: 13px; color: #888; z-index: 200; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+.feedback-footer strong { color: #3a7bd5; }
+
+/* TOAST */
+.toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1b2838; color: white; padding: 10px 24px; border-radius: 12px; font-size: 14px; font-weight: 600; opacity: 0; transition: all .3s; z-index: 999; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* SECTION LABEL */
-.section-label{font-size:13px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:1px;margin:20px 0 12px;padding-left:2px}
+.section-label { font-size: 12px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 10px; }
+.section-label:first-child { margin-top: 0; }
 
-/* HIDDEN HELPER */
-.hidden{display:none!important}
-
-/* JOHN/SARA INDICATOR */
-.persona-indicator{font-size:11px;color:rgba(255,255,255,.5);text-align:center;margin-bottom:4px;font-weight:500}
+/* JOHN/SARA MODE - hide/show */
+.john-only { display: none; }
+.sara-only { display: none; }
+body.mode-john .john-only { display: block; }
+body.mode-john .sara-only { display: none; }
+body.mode-sara .sara-only { display: block; }
+body.mode-sara .john-only { display: none; }
+body.mode-john .both-mode { display: block; }
+body.mode-sara .both-mode { display: block; }
 </style>
 </head>
-<body>
+<body class="mode-john">
 
 <!-- PASSWORD GATE -->
-<div id="gate">
-  <div class="gate-box">
-    <h1>🏠 Weekend Brief</h1>
-    <p>The Stevenson Family</p>
-    <input type="password" id="pw" placeholder="Enter passcode" autocomplete="off">
-    <button class="gate-btn" onclick="unlock()">Unlock</button>
-    <div class="gate-err" id="pwErr">Nope — try again.</div>
+<div class="pw-gate" id="pwGate">
+  <div class="pw-box">
+    <h1>🏡 Weekend Brief</h1>
+    <p>Enter the family password</p>
+    <input type="password" id="pwInput" placeholder="Password" autocomplete="off">
+    <button onclick="checkPw()">Unlock</button>
+    <div class="pw-error" id="pwError">Incorrect password. Try again.</div>
   </div>
 </div>
 
 <!-- MAIN APP -->
-<div id="app">
+<div class="app" id="app">
 
   <!-- HEADER -->
   <div class="header">
@@ -131,711 +128,593 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Ar
       <div class="header-title">Weekend Brief</div>
       <div class="date-pill">Apr 18 – 19</div>
     </div>
-    <div class="persona-toggle">
-      <button class="persona-btn active" id="btnJohn" onclick="setPersona('john')">👨 John</button>
-      <button class="persona-btn" id="btnSara" onclick="setPersona('sara')">👩 Sara</button>
+    <div class="person-toggle">
+      <button class="person-btn active" id="btnJohn" onclick="setPerson('john')">John</button>
+      <button class="person-btn" id="btnSara" onclick="setPerson('sara')">Sara</button>
     </div>
     <div class="weather-strip">
       <div class="weather-day">
-        <div class="weather-label">FRI</div>
+        <div class="day-label">Fri</div>
         <div class="weather-icon">☁️</div>
-        <div class="weather-temps">86° <span>63°</span></div>
-        <div class="weather-rain">💧 2%</div>
-      </div>
-      <div class="weather-day today">
-        <div class="weather-label">SAT</div>
-        <div class="weather-icon">☁️</div>
-        <div class="weather-temps">90° <span>64°</span></div>
-        <div class="weather-rain">💧 1%</div>
+        <div class="temps">88° <span>/ 64°</span></div>
+        <div class="rain">💧 2%</div>
       </div>
       <div class="weather-day">
-        <div class="weather-label">SUN</div>
+        <div class="day-label">Sat</div>
         <div class="weather-icon">☁️</div>
-        <div class="weather-temps">79° <span>58°</span></div>
-        <div class="weather-rain">💧 17%</div>
+        <div class="temps">90° <span>/ 64°</span></div>
+        <div class="rain">💧 1%</div>
+      </div>
+      <div class="weather-day">
+        <div class="day-label">Sun</div>
+        <div class="weather-icon">🌦️</div>
+        <div class="temps">75° <span>/ 54°</span></div>
+        <div class="rain">💧 19%</div>
       </div>
     </div>
   </div>
 
-  <!-- TAB BAR -->
+  <!-- TABS -->
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('weekend')">This Weekend</button>
     <button class="tab-btn" onclick="switchTab('coming')">Coming Up</button>
   </div>
 
   <!-- THIS WEEKEND TAB -->
-  <div class="tab-content active" id="tab-weekend">
+  <div class="tab-panel active" id="tab-weekend">
 
-    <!-- CALENDAR CALLOUT -->
-    <div class="cal-card">
-      <div class="cal-badge">🎶 Tonight</div>
-      <h3>Morgan Wallen — Still the Problem Tour</h3>
-      <p>Bank of America Stadium, 7:00 PM Saturday. It's going to be 90° and packed — hydrate, wear something breathable, and grab dinner beforehand. This is the hottest country ticket of the spring.</p>
+    <!-- CALLOUT CARD -->
+    <div class="callout-card">
+      <div class="callout-label">🎤 Tonight at Bank of America Stadium</div>
+      <div class="callout-title">Morgan Wallen — Still the Problem Tour</div>
+      <div class="callout-body">Saturday night, 7 PM. Bank of America Stadium will be absolutely packed. If you're going, plan for parking chaos around Uptown — Uber or get there by 5:30 to tailgate. If you're staying home, maybe avoid the I-77/277 interchange entirely.</div>
     </div>
 
     <div class="section-label">Curated for you</div>
 
     <!-- JOHN MODE CARDS -->
-    <div class="persona-john">
+    <div class="john-only">
 
-      <!-- Card 1: Saturday Family — OMB -->
+      <!-- CARD 1: Saturday Family -->
       <div class="rec-card" data-name="Olde Mecklenburg Brewery (OMB)" data-type="restaurant">
-        <div class="rec-tag tag-saturday">Saturday</div>
-        <h3>🍺 Biergarten Day at OMB</h3>
-        <div class="rec-body">Ninety degrees calls for a cold beer and a massive shaded biergarten. Let the boys loose on the playground while you post up with a Copper or a Meck Lager. Pretzels and bratwurst for the table — nobody's cooking in this heat.</div>
-        <div class="detail-chips">
-          <span class="chip">South Charlotte</span>
-          <span class="chip">$$</span>
-          <span class="chip kids-yes">✓ Kid Friendly</span>
-          <span class="chip">Go-To</span>
+        <div class="rec-tags">
+          <span class="tag tag-saturday">Saturday</span>
+          <span class="tag tag-family">Family</span>
         </div>
-        <div class="fb-row">
-          <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+        <div class="rec-title">OMB Biergarten — Let the Boys Loose</div>
+        <div class="rec-body">It's 90° and cloudless on Saturday — perfect for the massive OMB biergarten. The boys can run the playground while you post up with a Copper or a Mecktoberfest. Grab a couple of soft pretzels and bratwursts and call it a win. This is peak "everyone's happy" territory.</div>
+        <div class="detail-chips">
+          <span class="chip">📍 South Charlotte</span>
+          <span class="chip">💰 $$</span>
+          <span class="chip">👶 Kid-Friendly</span>
+          <span class="chip">🐕 Dog-Friendly</span>
+        </div>
+        <div class="feedback-row">
+          <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
           <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-          <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+          <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
           <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
         </div>
       </div>
 
-      <!-- Card 2: Saturday Family — Tipsy Pickle -->
-      <div class="rec-card" data-name="Tipsy Pickle" data-type="restaurant">
-        <div class="rec-tag tag-family">Family</div>
-        <h3>🏓 Pickleball + Tacos at Tipsy Pickle</h3>
-        <div class="rec-body">Camp North End spot with pickleball courts, golf sims, and an arcade — basically engineered for families with young boys burning off energy. Tex-Mex menu is solid, and it's all indoors if 90° feels like too much. Text the Blackburns or the Breedens — their kids would love this.</div>
-        <div class="detail-chips">
-          <span class="chip">Camp North End</span>
-          <span class="chip">$$</span>
-          <span class="chip kids-yes">✓ Kid Friendly</span>
-          <span class="chip">Want to Try</span>
+      <!-- CARD 2: Saturday Lunch -->
+      <div class="rec-card" data-name="The Improper Pig" data-type="restaurant">
+        <div class="rec-tags">
+          <span class="tag tag-saturday">Saturday</span>
+          <span class="tag tag-family">Family</span>
         </div>
-        <div class="fb-row">
-          <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+        <div class="rec-title">The Improper Pig — BBQ with a Twist</div>
+        <div class="rec-body">You keep talking about trying this place — here's your excuse. Pulled pork egg rolls, a kimchi burger that somehow works, and a kids menu that won't get side-eyed. Plaza Midwood on a hot Saturday afternoon has energy, and the boys will dig the laid-back vibe. Perfect pre-pool or post-morning-errands lunch.</div>
+        <div class="detail-chips">
+          <span class="chip">📍 Plaza Midwood</span>
+          <span class="chip">💰 $$</span>
+          <span class="chip">👶 Kid-Friendly</span>
+        </div>
+        <div class="feedback-row">
+          <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
           <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-          <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+          <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
           <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
         </div>
       </div>
 
-      <!-- Card 3: Sunday Brunch — 300 East -->
+      <!-- CARD 3: Sunday Brunch -->
       <div class="rec-card" data-name="300 East" data-type="restaurant">
-        <div class="rec-tag tag-sunday">Sunday</div>
-        <h3>🥞 Sunday Brunch at 300 East</h3>
-        <div class="rec-body">This charming Victorian home in Dilworth does one of the best brunches in Charlotte — the vanilla custard French toast is the move. Family-run, kids welcome, and Sunday should cool down to 79° so the walk around the neighborhood after is actually pleasant. A real Sunday morning vibe.</div>
-        <div class="detail-chips">
-          <span class="chip">Dilworth</span>
-          <span class="chip">$$</span>
-          <span class="chip kids-yes">✓ Kid Friendly</span>
-          <span class="chip">Want to Try</span>
+        <div class="rec-tags">
+          <span class="tag tag-sunday">Sunday</span>
+          <span class="tag tag-family">Family</span>
         </div>
-        <div class="fb-row">
-          <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+        <div class="rec-title">300 East — Sunday Brunch in a Victorian Home</div>
+        <div class="rec-body">Sunday cools down to 75° with possible drizzle — perfect brunch weather. 300 East in Dilworth is family-run, tucked inside a gorgeous Victorian house, and their vanilla custard French toast is the stuff of Charlotte legend. Kids are welcome, portions are generous, and you'll feel like a proper grown-up doing it. Get there early — this place fills.</div>
+        <div class="detail-chips">
+          <span class="chip">📍 Dilworth</span>
+          <span class="chip">💰 $$</span>
+          <span class="chip">👶 Kid-Friendly</span>
+          <span class="chip">🥞 Brunch</span>
+        </div>
+        <div class="feedback-row">
+          <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
           <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-          <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+          <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
           <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
         </div>
       </div>
 
-      <!-- Card 4: Sunday Casual — Harriet's -->
-      <div class="rec-card" data-name="Harriet's Hamburgers" data-type="restaurant">
-        <div class="rec-tag tag-saturday">Saturday</div>
-        <h3>🍔 Harriet's Hamburgers — Charlotte's Best</h3>
-        <div class="rec-body">Before or after Morgan Wallen, swing by Optimist Hall for Charlotte Observer's best burger. Black Angus smash patties from a walk-up window — fast, no-fuss, and the boys will demolish them. Pair it with Dumpling Lady or Bird Pizzeria in the same food hall for variety.</div>
-        <div class="detail-chips">
-          <span class="chip">Optimist Hall</span>
-          <span class="chip">$</span>
-          <span class="chip kids-yes">✓ Kid Friendly</span>
-          <span class="chip">Best Burger 🏆</span>
+      <!-- CARD 4: Sunday Activity -->
+      <div class="rec-card" data-name="Tipsy Pickle" data-type="restaurant">
+        <div class="rec-tags">
+          <span class="tag tag-sunday">Sunday</span>
+          <span class="tag tag-family">Family</span>
         </div>
-        <div class="fb-row">
-          <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+        <div class="rec-title">Tipsy Pickle — Pickleball + Arcade + Tex-Mex</div>
+        <div class="rec-body">If the drizzle pushes you indoors on Sunday, Tipsy Pickle at Camp North End has pickleball courts, golf simulators, and an arcade the boys will not want to leave. The Tex-Mex menu is solid, and they've got margaritas for the parents. Think of it as a one-stop rainy-day win. Invite the Blackburns — Henry and your guys would tear up the arcade.</div>
+        <div class="detail-chips">
+          <span class="chip">📍 Camp North End</span>
+          <span class="chip">💰 $$</span>
+          <span class="chip">👶 Kid-Friendly</span>
+          <span class="chip">🏓 Pickleball</span>
+        </div>
+        <div class="feedback-row">
+          <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
           <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-          <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+          <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
           <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
         </div>
       </div>
 
-    </div><!-- /persona-john -->
+    </div>
 
     <!-- SARA MODE CARDS -->
-    <div class="persona-sara hidden">
+    <div class="sara-only">
 
-      <!-- Card 1: Date Night — Supperland -->
+      <!-- CARD 1: Saturday Date Night -->
       <div class="rec-card" data-name="Supperland" data-type="restaurant">
-        <div class="rec-tag tag-datenight">Date Night</div>
-        <h3>🥩 Saturday Night at Supperland</h3>
-        <div class="rec-body">If you're not going to Morgan Wallen, take advantage of a babysitter and the warm evening at Supperland. The wood-fired steakhouse in the restored church is still one of the most atmospheric spots in Charlotte — and that speakeasy bar downstairs afterward? Chef's kiss. Michelin Exceptional Cocktails for a reason.</div>
-        <div class="detail-chips">
-          <span class="chip">Plaza Midwood</span>
-          <span class="chip">$$$</span>
-          <span class="chip kids-no">Adults Only</span>
-          <span class="chip">Go-To 🏆</span>
+        <div class="rec-tags">
+          <span class="tag tag-saturday">Saturday</span>
+          <span class="tag tag-datenight">Date Night</span>
         </div>
-        <div class="fb-row">
-          <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+        <div class="rec-title">Supperland — Saturday Night in the Church</div>
+        <div class="rec-body">With Morgan Wallen pulling 70,000 people to Uptown, steer the opposite direction and grab a table at Supperland in Plaza Midwood. The restored church space is stunning at night, the wood-fired steaks are ridiculous, and the speakeasy bar downstairs is worth lingering at. Michelin-recognized cocktails don't hurt either. Book now — the crowd avoiding Uptown will land here.</div>
+        <div class="detail-chips">
+          <span class="chip">📍 Plaza Midwood</span>
+          <span class="chip">💰 $$$</span>
+          <span class="chip">🍸 Speakeasy Bar</span>
+          <span class="chip">🏆 Michelin Cocktails</span>
+        </div>
+        <div class="feedback-row">
+          <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
           <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-          <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+          <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
           <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
         </div>
       </div>
 
-      <!-- Card 2: Date Night — Rada -->
-      <div class="rec-card" data-name="Rada" data-type="restaurant">
-        <div class="rec-tag tag-datenight">Date Night</div>
-        <h3>🍷 Rada — The One the NY Times Found</h3>
-        <div class="rec-body">Basque-leaning, Michelin-noticed, and tucked into Myers Park. The dover sole and lamb bolognese are outstanding, and the wine list is curated without being pretentious. This is the kind of place you walk out of feeling like you actually went out. Book for Saturday — you won't regret it.</div>
-        <div class="detail-chips">
-          <span class="chip">Myers Park</span>
-          <span class="chip">$$$</span>
-          <span class="chip kids-no">Adults Only</span>
-          <span class="chip">NY Times + Michelin 🏆</span>
-        </div>
-        <div class="fb-row">
-          <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
-          <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-          <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
-          <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
-        </div>
-      </div>
-
-      <!-- Card 3: Sunday — The Crunkleton Brunch -->
-      <div class="rec-card" data-name="The Crunkleton" data-type="restaurant">
-        <div class="rec-tag tag-sunday">Sunday</div>
-        <h3>🥂 Boozy Brunch at The Crunkleton</h3>
-        <div class="rec-body">Sunday's cooler temps are practically begging for The Crunkleton's Charlotte Hot Brown and a proper cocktail. It's a no-kids zone so this is more of a "send John with the boys to Eddie's and you go here with a friend" situation. The biscuits & gravy are legit.</div>
-        <div class="detail-chips">
-          <span class="chip">Elizabeth</span>
-          <span class="chip">$$</span>
-          <span class="chip kids-no">Adults Only</span>
-          <span class="chip">Want to Try</span>
-        </div>
-        <div class="fb-row">
-          <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
-          <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-          <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
-          <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
-        </div>
-      </div>
-
-      <!-- Card 4: Date Night — The Story of Mi Cariño -->
+      <!-- CARD 2: Date Night Option 2 -->
       <div class="rec-card" data-name="The Story of Mi Cariño" data-type="restaurant">
-        <div class="rec-tag tag-datenight">Date Night</div>
-        <h3>🌵 Mi Cariño — Mezcal & Small Plates</h3>
-        <div class="rec-body">Opened January and already one of the hottest spots in South End. Over 200 agave spirits, scratch small plates, and a moody vibe that feels like you stumbled into Mexico City. Perfect warm-weather Saturday pre-game or nightcap after the concert. Grab the Blackburns for a double date.</div>
-        <div class="detail-chips">
-          <span class="chip">South End</span>
-          <span class="chip">$$</span>
-          <span class="chip kids-no">Adults Only</span>
-          <span class="chip">New — Jan 2026</span>
+        <div class="rec-tags">
+          <span class="tag tag-saturday">Saturday</span>
+          <span class="tag tag-datenight">Date Night</span>
         </div>
-        <div class="fb-row">
-          <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+        <div class="rec-title">The Story of Mi Cariño — New Mezcalería in South End</div>
+        <div class="rec-body">This just opened in January and the buzz is real — 200+ agave spirits, scratch small plates, and a moody, beautiful space in South End. A 90-degree Saturday night practically begs for mezcal cocktails on a patio. This is the kind of spot you go to before everyone else discovers it and the wait becomes unbearable.</div>
+        <div class="detail-chips">
+          <span class="chip">📍 South End</span>
+          <span class="chip">💰 $$</span>
+          <span class="chip">🥃 200+ Agave Spirits</span>
+          <span class="chip">✨ New — Jan 2026</span>
+        </div>
+        <div class="feedback-row">
+          <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
           <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-          <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+          <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
           <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
         </div>
       </div>
 
-    </div><!-- /persona-sara -->
+      <!-- CARD 3: Sunday Brunch -->
+      <div class="rec-card" data-name="The Crunkleton" data-type="restaurant">
+        <div class="rec-tags">
+          <span class="tag tag-sunday">Sunday</span>
+          <span class="tag tag-datenight">Date Night</span>
+        </div>
+        <div class="rec-title">The Crunkleton — Cocktail-Forward Sunday Brunch</div>
+        <div class="rec-body">Sunday's cooler temps and drizzle make this the ideal morning for The Crunkleton in Elizabeth. Their Charlotte Hot Brown is a cult favorite, the biscuits & gravy are indulgent, and the cocktail program is legitimately one of the best in the city. No kids here — this one's for you two. Sleep in, rally, go slow.</div>
+        <div class="detail-chips">
+          <span class="chip">📍 Elizabeth</span>
+          <span class="chip">💰 $$</span>
+          <span class="chip">🍳 Brunch</span>
+          <span class="chip">🍸 Top Cocktails</span>
+        </div>
+        <div class="feedback-row">
+          <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
+          <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
+          <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
+          <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
+        </div>
+      </div>
 
-  </div><!-- /tab-weekend -->
+      <!-- CARD 4: Sunday Dinner -->
+      <div class="rec-card" data-name="Rada" data-type="restaurant">
+        <div class="rec-tags">
+          <span class="tag tag-sunday">Sunday</span>
+          <span class="tag tag-datenight">Date Night</span>
+        </div>
+        <div class="rec-title">Rada — Your Go-To, But Make It Sunday</div>
+        <div class="rec-body">Sunday evening, rain tapering off, the week looming — treat yourselves to the Dover sole or lamb bolognese at Rada before it all starts again. The NY Times and Michelin have both noticed this place for a reason. That curated wine list pairs perfectly with a "we survived the weekend" mood. You love it here. Go back.</div>
+        <div class="detail-chips">
+          <span class="chip">📍 Myers Park</span>
+          <span class="chip">💰 $$$</span>
+          <span class="chip">🏆 NY Times + Michelin</span>
+          <span class="chip">🍷 Wine List</span>
+        </div>
+        <div class="feedback-row">
+          <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
+          <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
+          <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
+          <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
 
   <!-- COMING UP TAB -->
-  <div class="tab-content" id="tab-coming">
+  <div class="tab-panel" id="tab-coming">
+
     <div class="section-label">Next 75 Days</div>
 
     <!-- Chelsea Handler -->
     <div class="radar-card" data-name="Chelsea Handler — High and Mighty" data-type="event">
-      <div class="radar-date">May 1</div>
-      <h3>Chelsea Handler — High and Mighty</h3>
+      <div class="radar-date">May 1 · Comedy</div>
+      <div class="radar-title">Chelsea Handler — High and Mighty</div>
       <div class="radar-venue">Ovens Auditorium · $$</div>
-      <div class="radar-meta">
-        <span class="rec-tag tag-datenight" style="font-size:10px;margin:0">Date Night</span>
-        <span class="chip kids-no">Adults Only</span>
+      <div class="radar-chips">
+        <span class="tag tag-datenight">Date Night</span>
+        <span class="invite-chip">👫 Invite the Blackburns or Howards</span>
       </div>
-      <div class="invite-section">
-        <div class="invite-label">Who to invite</div>
-        <div class="invite-chips">
-          <span class="invite-chip">Barrett & Shelby Blackburn</span>
-          <span class="invite-chip">Kyle Moore</span>
-        </div>
-      </div>
-      <div class="fb-row">
-        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
         <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-        <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
         <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
       </div>
     </div>
 
     <!-- Riley Green -->
     <div class="radar-card" data-name="Riley Green — Cowboy As It Gets Tour" data-type="event">
-      <div class="radar-date">May 7</div>
-      <h3>Riley Green — Cowboy As It Gets Tour</h3>
+      <div class="radar-date">May 7 · Concert</div>
+      <div class="radar-title">Riley Green — Cowboy As It Gets Tour</div>
       <div class="radar-venue">Truliant Amphitheater · $$ · 7:00 PM</div>
-      <div class="radar-meta">
-        <span class="rec-tag tag-concert" style="font-size:10px;margin:0">Concert</span>
-        <span class="chip kids-no">Adults Only</span>
+      <div class="radar-chips">
+        <span class="tag tag-concert">Concert</span>
+        <span class="invite-chip">👫 Invite Kyle Moore or Andrew Corbett Olson</span>
       </div>
-      <div class="invite-section">
-        <div class="invite-label">Who to invite</div>
-        <div class="invite-chips">
-          <span class="invite-chip">Barrett & Shelby Blackburn</span>
-          <span class="invite-chip">Wood & Ali Breeden</span>
-          <span class="invite-chip">Kyle Moore</span>
-        </div>
-      </div>
-      <div class="fb-row">
-        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
         <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-        <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
         <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
       </div>
     </div>
 
-    <!-- Charlotte FC vs FC Cincinnati -->
+    <!-- Charlotte FC vs Cincinnati -->
     <div class="radar-card" data-name="Charlotte FC vs. FC Cincinnati" data-type="event">
-      <div class="radar-date">May 9</div>
-      <h3>Charlotte FC vs. FC Cincinnati</h3>
+      <div class="radar-date">May 9 · Sports</div>
+      <div class="radar-title">Charlotte FC vs. FC Cincinnati</div>
       <div class="radar-venue">Bank of America Stadium · $$ · Season Tickets</div>
-      <div class="radar-meta">
-        <span class="rec-tag tag-family" style="font-size:10px;margin:0">Family</span>
-        <span class="chip kids-yes">✓ Kid Friendly</span>
+      <div class="radar-chips">
+        <span class="tag tag-family">Family</span>
+        <span class="invite-chip">👨‍👩‍👦 Invite the Blackburns, Ash, or Mims families</span>
       </div>
-      <div class="invite-section">
-        <div class="invite-label">Who to invite</div>
-        <div class="invite-chips">
-          <span class="invite-chip">Blackburn family</span>
-          <span class="invite-chip">Ash family</span>
-          <span class="invite-chip">Mims family</span>
-          <span class="invite-chip">Ethridge family</span>
-        </div>
-      </div>
-      <div class="fb-row">
-        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
         <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-        <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
         <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
       </div>
     </div>
 
     <!-- Sturgill + Tyler Childers -->
     <div class="radar-card" data-name="Sturgill Simpson w/ Tyler Childers — A Good Look'n Tour" data-type="event">
-      <div class="radar-date">May 13</div>
-      <h3>🔥 Sturgill Simpson w/ Tyler Childers</h3>
-      <div class="radar-venue">Skyla Credit Union Amphitheatre · $$$ · Don't miss</div>
-      <div class="radar-meta">
-        <span class="rec-tag tag-concert" style="font-size:10px;margin:0">Concert</span>
-        <span class="rec-tag tag-datenight" style="font-size:10px;margin:0">Date Night</span>
-        <span class="chip kids-no">Adults Only</span>
+      <div class="radar-date">May 13 · Concert</div>
+      <div class="radar-title">Sturgill Simpson w/ Tyler Childers</div>
+      <div class="radar-venue">Skyla Credit Union Amphitheatre · $$$</div>
+      <div class="radar-chips">
+        <span class="tag tag-concert">Concert</span>
+        <span class="tag tag-datenight">Date Night</span>
+        <span class="invite-chip">👫 Invite Kyle Moore or the Blackburns</span>
       </div>
-      <div class="invite-section">
-        <div class="invite-label">Who to invite</div>
-        <div class="invite-chips">
-          <span class="invite-chip">Barrett & Shelby Blackburn</span>
-          <span class="invite-chip">Andrew Corbett Olson</span>
-          <span class="invite-chip">Kyle Moore</span>
-        </div>
-      </div>
-      <div class="fb-row">
-        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+      <div class="radar-note">🔥 Huge get — don't miss this one</div>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
         <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-        <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
         <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
       </div>
     </div>
 
     <!-- Charlotte FC vs NYCFC -->
     <div class="radar-card" data-name="Charlotte FC vs. NYCFC" data-type="event">
-      <div class="radar-date">May 13</div>
-      <h3>Charlotte FC vs. NYCFC</h3>
-      <div class="radar-venue">Bank of America Stadium · $$ · Playoff Rematch</div>
-      <div class="radar-meta">
-        <span class="rec-tag tag-family" style="font-size:10px;margin:0">Family</span>
-        <span class="chip kids-yes">✓ Kid Friendly</span>
+      <div class="radar-date">May 13 · Sports</div>
+      <div class="radar-title">Charlotte FC vs. NYCFC</div>
+      <div class="radar-venue">Bank of America Stadium · $$ · Season Tickets</div>
+      <div class="radar-chips">
+        <span class="tag tag-family">Family</span>
+        <span class="invite-chip">👨‍👩‍👦 Playoff rematch — invite the Fountaines or Elliotts</span>
       </div>
-      <div class="invite-section">
-        <div class="invite-label">Who to invite</div>
-        <div class="invite-chips">
-          <span class="invite-chip">Breeden family</span>
-          <span class="invite-chip">Fountaine family</span>
-          <span class="invite-chip">Howard family</span>
-        </div>
-      </div>
-      <div class="fb-row">
-        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+      <div class="radar-note">⚡ Playoff rematch. Atmosphere will be electric.</div>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
         <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-        <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
         <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
       </div>
     </div>
 
     <!-- Dave Matthews Band -->
     <div class="radar-card" data-name="Dave Matthews Band" data-type="event">
-      <div class="radar-date">May 16</div>
-      <h3>Dave Matthews Band</h3>
+      <div class="radar-date">May 16 · Concert</div>
+      <div class="radar-title">Dave Matthews Band</div>
       <div class="radar-venue">Truliant Amphitheater · $$ · 7:30 PM</div>
-      <div class="radar-meta">
-        <span class="rec-tag tag-concert" style="font-size:10px;margin:0">Concert</span>
-        <span class="rec-tag tag-datenight" style="font-size:10px;margin:0">Date Night</span>
-        <span class="chip kids-no">Adults Only</span>
+      <div class="radar-chips">
+        <span class="tag tag-concert">Concert</span>
+        <span class="tag tag-datenight">Date Night</span>
+        <span class="invite-chip">👫 Invite Mdsmith or Andrewsheils</span>
       </div>
-      <div class="invite-section">
-        <div class="invite-label">Who to invite</div>
-        <div class="invite-chips">
-          <span class="invite-chip">Barrett & Shelby Blackburn</span>
-          <span class="invite-chip">Mdsmith</span>
-          <span class="invite-chip">Andrewsheils</span>
-        </div>
-      </div>
-      <div class="fb-row">
-        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
         <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-        <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
         <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
       </div>
     </div>
 
-    <!-- Charlotte FC vs Toronto FC -->
+    <!-- Charlotte FC vs Toronto -->
     <div class="radar-card" data-name="Charlotte FC vs. Toronto FC" data-type="event">
-      <div class="radar-date">May 16</div>
-      <h3>Charlotte FC vs. Toronto FC</h3>
+      <div class="radar-date">May 16 · Sports</div>
+      <div class="radar-title">Charlotte FC vs. Toronto FC</div>
       <div class="radar-venue">Bank of America Stadium · $$ · Season Tickets</div>
-      <div class="radar-meta">
-        <span class="rec-tag tag-family" style="font-size:10px;margin:0">Family</span>
-        <span class="chip kids-yes">✓ Kid Friendly</span>
+      <div class="radar-chips">
+        <span class="tag tag-family">Family</span>
+        <span class="invite-chip">👨‍👩‍👦 Invite the Breedens or Millers</span>
       </div>
-      <div class="invite-section">
-        <div class="invite-label">Who to invite</div>
-        <div class="invite-chips">
-          <span class="invite-chip">Miller family</span>
-          <span class="invite-chip">Adams family</span>
-          <span class="invite-chip">Leader family</span>
-        </div>
-      </div>
-      <div class="fb-row">
-        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
         <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-        <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
         <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
       </div>
     </div>
 
     <!-- Sting -->
     <div class="radar-card" data-name="Sting — 3.0 Tour" data-type="event">
-      <div class="radar-date">May 18</div>
-      <h3>Sting — 3.0 Tour</h3>
+      <div class="radar-date">May 18 · Concert</div>
+      <div class="radar-title">Sting — 3.0 Tour</div>
       <div class="radar-venue">Truliant Amphitheater · $$$ · 8:00 PM</div>
-      <div class="radar-meta">
-        <span class="rec-tag tag-concert" style="font-size:10px;margin:0">Concert</span>
-        <span class="rec-tag tag-datenight" style="font-size:10px;margin:0">Date Night</span>
-        <span class="chip kids-no">Adults Only</span>
+      <div class="radar-chips">
+        <span class="tag tag-concert">Concert</span>
+        <span class="tag tag-datenight">Date Night</span>
+        <span class="invite-chip">👫 Invite Andrew Corbett Olson or the Howards</span>
       </div>
-      <div class="invite-section">
-        <div class="invite-label">Who to invite</div>
-        <div class="invite-chips">
-          <span class="invite-chip">Barrett & Shelby Blackburn</span>
-          <span class="invite-chip">Andrew Corbett Olson</span>
-        </div>
-      </div>
-      <div class="fb-row">
-        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
         <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-        <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
         <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
       </div>
     </div>
 
-    <!-- Charlotte FC vs New England -->
+    <!-- Charlotte FC vs NE Revolution -->
     <div class="radar-card" data-name="Charlotte FC vs. New England Revolution" data-type="event">
-      <div class="radar-date">May 23</div>
-      <h3>Charlotte FC vs. New England Revolution</h3>
+      <div class="radar-date">May 23 · Sports</div>
+      <div class="radar-title">Charlotte FC vs. New England Revolution</div>
       <div class="radar-venue">Bank of America Stadium · $$ · Season Tickets</div>
-      <div class="radar-meta">
-        <span class="rec-tag tag-family" style="font-size:10px;margin:0">Family</span>
-        <span class="chip kids-yes">✓ Kid Friendly</span>
+      <div class="radar-chips">
+        <span class="tag tag-family">Family</span>
+        <span class="invite-chip">👨‍👩‍👦 Invite the Adkins or Owens families</span>
       </div>
-      <div class="invite-section">
-        <div class="invite-label">Who to invite</div>
-        <div class="invite-chips">
-          <span class="invite-chip">Alvarez family</span>
-          <span class="invite-chip">Oakford family</span>
-          <span class="invite-chip">Owens family</span>
-        </div>
-      </div>
-      <div class="fb-row">
-        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
         <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-        <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
         <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
       </div>
     </div>
 
     <!-- Brad Paisley / Coca-Cola 600 -->
     <div class="radar-card" data-name="Brad Paisley (pre-race Coca-Cola 600)" data-type="event">
-      <div class="radar-date">May 24</div>
-      <h3>Brad Paisley — Pre-Race Coca-Cola 600</h3>
+      <div class="radar-date">May 24 · Concert + Racing</div>
+      <div class="radar-title">Brad Paisley — Pre-Race Coca-Cola 600</div>
       <div class="radar-venue">Charlotte Motor Speedway · $$</div>
-      <div class="radar-meta">
-        <span class="rec-tag tag-concert" style="font-size:10px;margin:0">Concert</span>
-        <span class="rec-tag tag-event" style="font-size:10px;margin:0">Racing</span>
-        <span class="chip">Maybe Kids</span>
+      <div class="radar-chips">
+        <span class="tag tag-concert">Concert</span>
+        <span class="tag tag-event">Event</span>
+        <span class="invite-chip">👫 Invite Kyle Moore or the Beasleys</span>
       </div>
-      <div class="invite-section">
-        <div class="invite-label">Who to invite</div>
-        <div class="invite-chips">
-          <span class="invite-chip">Kyle Moore</span>
-          <span class="invite-chip">Barrett Blackburn</span>
-          <span class="invite-chip">Wood Breeden</span>
-        </div>
-      </div>
-      <div class="fb-row">
-        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
         <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-        <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
         <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
       </div>
     </div>
 
     <!-- Hank Williams Jr. -->
     <div class="radar-card" data-name="Hank Williams Jr." data-type="event">
-      <div class="radar-date">May 30</div>
-      <h3>Hank Williams Jr.</h3>
+      <div class="radar-date">May 30 · Concert</div>
+      <div class="radar-title">Hank Williams Jr.</div>
       <div class="radar-venue">Truliant Amphitheater · $$ · 6:30 PM</div>
-      <div class="radar-meta">
-        <span class="rec-tag tag-concert" style="font-size:10px;margin:0">Concert</span>
-        <span class="chip kids-no">Adults Only</span>
+      <div class="radar-chips">
+        <span class="tag tag-concert">Concert</span>
+        <span class="invite-chip">👫 Invite Mdsmith or Kyle Moore</span>
       </div>
-      <div class="invite-section">
-        <div class="invite-label">Who to invite</div>
-        <div class="invite-chips">
-          <span class="invite-chip">Kyle Moore</span>
-          <span class="invite-chip">Mdsmith</span>
-        </div>
-      </div>
-      <div class="fb-row">
-        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
         <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-        <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
         <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
       </div>
     </div>
 
-    <!-- Emerald Isle Fishing Derby -->
+    <!-- Emerald Isle Youth Fishing Derby -->
     <div class="radar-card" data-name="Emerald Isle Youth Fishing Derby" data-type="event">
-      <div class="radar-date">Jun 6</div>
-      <h3>🐟 Emerald Isle Youth Fishing Derby</h3>
-      <div class="radar-venue">Emerald Isle, NC · ~3 hrs · FREE</div>
-      <div class="radar-meta">
-        <span class="rec-tag tag-family" style="font-size:10px;margin:0">Family</span>
-        <span class="chip kids-yes">✓ Kid Friendly</span>
-        <span class="chip">Ages 5–12</span>
-        <span class="chip">Free!</span>
+      <div class="radar-date">Jun 6 · Family Activity</div>
+      <div class="radar-title">Emerald Isle Youth Fishing Derby</div>
+      <div class="radar-venue">Emerald Isle, NC · Free · ~3 hrs drive</div>
+      <div class="radar-chips">
+        <span class="tag tag-family">Family</span>
+        <span class="tag tag-event">Free Event</span>
+        <span class="invite-chip">👨‍👩‍👦 Ages 5–12, bait provided, prizes! Invite the Hubler or Leader families</span>
       </div>
-      <div class="invite-section">
-        <div class="invite-label">Who to invite</div>
-        <div class="invite-chips">
-          <span class="invite-chip">Blackburn family</span>
-          <span class="invite-chip">Elliott family</span>
-          <span class="invite-chip">Hubler family</span>
-        </div>
-      </div>
-      <div class="fb-row">
-        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+      <div class="radar-note">🎣 Perfect excuse for a beach weekend — free for kids, prizes included</div>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
         <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-        <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
         <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
       </div>
     </div>
 
     <!-- Black Crowes & Whiskey Myers -->
     <div class="radar-card" data-name="Black Crowes & Whiskey Myers — Southern Hospitality Tour" data-type="event">
-      <div class="radar-date">Jun 6</div>
-      <h3>Black Crowes & Whiskey Myers</h3>
+      <div class="radar-date">Jun 6 · Concert</div>
+      <div class="radar-title">Black Crowes & Whiskey Myers — Southern Hospitality Tour</div>
       <div class="radar-venue">Truliant Amphitheater · $$ · 6:30 PM</div>
-      <div class="radar-meta">
-        <span class="rec-tag tag-concert" style="font-size:10px;margin:0">Concert</span>
-        <span class="chip kids-no">Adults Only</span>
+      <div class="radar-chips">
+        <span class="tag tag-concert">Concert</span>
+        <span class="invite-chip">👫 Invite Barrett Blackburn or Andrewsheils</span>
       </div>
-      <div class="invite-section">
-        <div class="invite-label">Who to invite</div>
-        <div class="invite-chips">
-          <span class="invite-chip">Barrett & Shelby Blackburn</span>
-          <span class="invite-chip">Andrewsheils</span>
-          <span class="invite-chip">Andrew Corbett Olson</span>
-        </div>
-      </div>
-      <div class="fb-row">
-        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
         <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-        <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
         <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
       </div>
     </div>
 
     <!-- Chris Stapleton -->
     <div class="radar-card" data-name="Chris Stapleton — All-American Road Show" data-type="event">
-      <div class="radar-date">Jun 20</div>
-      <h3>🔥 Chris Stapleton — All-American Road Show</h3>
+      <div class="radar-date">Jun 20 · Concert</div>
+      <div class="radar-title">Chris Stapleton — All-American Road Show</div>
       <div class="radar-venue">Bank of America Stadium · $$$ · 6:00 PM</div>
-      <div class="radar-meta">
-        <span class="rec-tag tag-concert" style="font-size:10px;margin:0">Concert</span>
-        <span class="rec-tag tag-datenight" style="font-size:10px;margin:0">Date Night</span>
-        <span class="chip kids-no">Adults Only</span>
-        <span class="chip">w/ Lainey Wilson & Allen Stone</span>
+      <div class="radar-chips">
+        <span class="tag tag-concert">Concert</span>
+        <span class="tag tag-datenight">Date Night</span>
+        <span class="invite-chip">👫 w/ Lainey Wilson & Allen Stone — invite the Blackburns</span>
       </div>
-      <div class="invite-section">
-        <div class="invite-label">Who to invite</div>
-        <div class="invite-chips">
-          <span class="invite-chip">Barrett & Shelby Blackburn</span>
-          <span class="invite-chip">Kyle Moore</span>
-          <span class="invite-chip">Mdsmith</span>
-          <span class="invite-chip">Andrewsheils</span>
-        </div>
-      </div>
-      <div class="fb-row">
-        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+      <div class="radar-note">🔥 This is the big one. Stapleton + Lainey Wilson + Allen Stone. Don't sit on this.</div>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
         <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-        <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
         <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
       </div>
     </div>
 
     <!-- Matt Rife -->
     <div class="radar-card" data-name="Matt Rife — Stay Golden" data-type="event">
-      <div class="radar-date">Jun 28</div>
-      <h3>Matt Rife — Stay Golden</h3>
+      <div class="radar-date">Jun 28 · Comedy</div>
+      <div class="radar-title">Matt Rife — Stay Golden</div>
       <div class="radar-venue">Spectrum Center · $$</div>
-      <div class="radar-meta">
-        <span class="rec-tag tag-datenight" style="font-size:10px;margin:0">Date Night</span>
-        <span class="chip kids-no">Adults Only</span>
+      <div class="radar-chips">
+        <span class="tag tag-datenight">Date Night</span>
+        <span class="invite-chip">👫 Invite the Howards or Oakfords</span>
       </div>
-      <div class="invite-section">
-        <div class="invite-label">Who to invite</div>
-        <div class="invite-chips">
-          <span class="invite-chip">Barrett & Shelby Blackburn</span>
-          <span class="invite-chip">Andrew Corbett Olson</span>
-        </div>
-      </div>
-      <div class="fb-row">
-        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love it</button>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="fb(this,'love')">❤️ Love</button>
         <button class="fb-btn" onclick="fb(this,'nope')">👎 Nope</button>
-        <button class="fb-btn" onclick="fb(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="fb(this,'interested')">👀 Maybe</button>
         <button class="fb-btn" onclick="fb(this,'swap')">🔄 Swap</button>
       </div>
     </div>
 
-  </div><!-- /tab-coming -->
-
-  <!-- FEEDBACK FOOTER -->
-  <div class="fb-footer">
-    <div class="fb-count"><span id="rxCount">0</span> reactions</div>
-    <button class="copy-btn" id="copyBtn" onclick="copyFeedback()">📋 Copy Feedback</button>
   </div>
 
-</div><!-- /app -->
+  <!-- FEEDBACK FOOTER -->
+  <div class="feedback-footer">
+    <span id="reactionCount">0</span> reactions saved this session
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+</div>
 
 <script>
 const FEEDBACK_ENDPOINT = "https://script.google.com/macros/s/AKfycbyXPJKD_giR8p47hlEER3_gybQUYLtgl6u-wfTsXsj0m3ggZXrmgBC_IsF0rMZGaMyZ/exec";
-function sendFeedback(type, name, vote) {
-  if (!FEEDBACK_ENDPOINT) return;
+function sendFeedback(type, name, vote, person) {
   fetch(FEEDBACK_ENDPOINT, {
     method: "POST",
     headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({type, name, vote})
-  }).catch(() => {});
+    body: JSON.stringify({type, name, vote, person})
+  }).then(r => r.json())
+    .then(d => showToast(d.ok ? "✓ Saved" : "⚠ Not saved"))
+    .catch(() => showToast("⚠ No connection"));
 }
 
-// Password gate
-function unlock() {
-  const pw = document.getElementById('pw').value.trim().toLowerCase();
-  if (pw === 'stevenson') {
-    document.getElementById('gate').style.display = 'none';
+let currentPerson = 'john';
+let reactionCount = 0;
+
+function checkPw() {
+  const input = document.getElementById('pwInput').value.toLowerCase().trim();
+  if (input === 'stevenson') {
+    document.getElementById('pwGate').style.display = 'none';
     document.getElementById('app').style.display = 'block';
   } else {
-    document.getElementById('pwErr').style.display = 'block';
-    document.getElementById('pw').value = '';
-    document.getElementById('pw').focus();
+    document.getElementById('pwError').style.display = 'block';
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwInput').focus();
   }
 }
-document.getElementById('pw').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') unlock();
+
+document.getElementById('pwInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') checkPw();
 });
 
-// Tab switching
+function setPerson(person) {
+  currentPerson = person;
+  document.body.classList.remove('mode-john', 'mode-sara');
+  document.body.classList.add('mode-' + person);
+  document.getElementById('btnJohn').classList.toggle('active', person === 'john');
+  document.getElementById('btnSara').classList.toggle('active', person === 'sara');
+}
+
 function switchTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  if (tab === 'weekend') {
-    document.querySelectorAll('.tab-btn')[0].classList.add('active');
-    document.getElementById('tab-weekend').classList.add('active');
-  } else {
-    document.querySelectorAll('.tab-btn')[1].classList.add('active');
-    document.getElementById('tab-coming').classList.add('active');
-  }
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', (tab === 'weekend' && i === 0) || (tab === 'coming' && i === 1));
+  });
+  document.getElementById('tab-weekend').classList.toggle('active', tab === 'weekend');
+  document.getElementById('tab-coming').classList.toggle('active', tab === 'coming');
 }
-
-// Persona toggle
-let currentPersona = 'john';
-function setPersona(p) {
-  currentPersona = p;
-  document.getElementById('btnJohn').classList.toggle('active', p === 'john');
-  document.getElementById('btnSara').classList.toggle('active', p === 'sara');
-  document.querySelector('.persona-john').classList.toggle('hidden', p !== 'john');
-  document.querySelector('.persona-sara').classList.toggle('hidden', p !== 'sara');
-}
-
-// Feedback
-let reactions = {};
-const voteClasses = { love: 'sel-love', nope: 'sel-nope', interested: 'sel-interested', swap: 'sel-swap' };
 
 function fb(btn, vote) {
-  const card = btn.closest('[data-name]');
+  const row = btn.parentElement;
+  const card = row.closest('[data-name]');
   const type = card.getAttribute('data-type');
   const name = card.getAttribute('data-name');
-  const key = type + '::' + name;
-  const row = btn.parentElement;
-  const wasActive = btn.classList.contains(voteClasses[vote]);
 
-  // Clear all in row
+  // Clear other selections in this row
   row.querySelectorAll('.fb-btn').forEach(b => {
-    Object.values(voteClasses).forEach(c => b.classList.remove(c));
+    b.classList.remove('selected-love', 'selected-nope', 'selected-interested', 'selected-swap');
   });
 
-  if (wasActive) {
-    delete reactions[key];
-  } else {
-    btn.classList.add(voteClasses[vote]);
-    reactions[key] = { type, name, vote };
-    sendFeedback(type, name, vote);
-  }
-  updateCount();
+  // Set selected state
+  btn.classList.add('selected-' + vote);
+
+  // Send feedback
+  sendFeedback(type, name, vote, currentPerson);
+
+  // Update count
+  reactionCount++;
+  document.getElementById('reactionCount').textContent = reactionCount;
 }
 
-function updateCount() {
-  document.getElementById('rxCount').textContent = Object.keys(reactions).length;
-}
-
-function copyFeedback() {
-  const lines = Object.values(reactions).map(r => `${r.vote.toUpperCase()}: [${r.type}] ${r.name}`);
-  const text = lines.length ? lines.join('\n') : 'No reactions yet.';
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = document.getElementById('copyBtn');
-    btn.textContent = '✅ Copied!';
-    btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = '📋 Copy Feedback'; btn.classList.remove('copied'); }, 2000);
-  }).catch(() => {
-    // Fallback
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    const btn = document.getElementById('copyBtn');
-    btn.textContent = '✅ Copied!';
-    btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = '📋 Copy Feedback'; btn.classList.remove('copied'); }, 2000);
-  });
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
 }
 </script>
 </body>

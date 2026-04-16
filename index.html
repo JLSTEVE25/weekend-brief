@@ -68,6 +68,7 @@
   .tag-family{background:#fff3e0;color:#e65100}
   .tag-event{background:#e8fde8;color:#1a6b2a}
   .tag-concert{background:#e8eaf6;color:#283593}
+  .tag-group{background:#e6f4f1;color:#0d7a5f}
   .rec-card h3{font-size:17px;font-weight:700;margin-bottom:6px;color:#1d1d1f}
   .rec-card .body{font-size:14px;color:#555;line-height:1.5;margin-bottom:12px}
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
@@ -715,6 +716,162 @@
           <span class="invite-chip">Barrett & Shelby Blackburn</span>
           <span class="invite-chip">Charles & Stephanie Fountaine</span>
         </div>
+      </div>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="handleFB(this,'love')">❤️ Love it</button>
+        <button class="fb-btn" onclick="handleFB(this,'nope')">👎 Nope</button>
+        <button class="fb-btn" onclick="handleFB(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="handleFB(this,'swap')">🔄 Swap</button>
+      </div>
+    </div>
+
+    <div class="section-label">Date Night — Worth Booking</div>
+
+    <!-- Panko -->
+    <div class="rec-card" data-name="Panko" data-type="restaurant">
+      <div class="tag tag-datenight">Date Night</div>
+      <h3>Panko — Peruvian-Japanese in NoDa</h3>
+      <div class="body">One of the more interesting menus in Charlotte right now — Peruvian technique meets Japanese precision. NoDa on a weeknight is easy parking, relaxed pace, and the kind of place where you actually linger. Worth doing before word fully gets out.</div>
+      <div class="chips">
+        <span class="chip">NoDa</span>
+        <span class="chip">$$$</span>
+        <span class="chip kids-no">Adults Only</span>
+        <span class="chip">Peruvian-Japanese</span>
+      </div>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="handleFB(this,'love')">❤️ Love it</button>
+        <button class="fb-btn" onclick="handleFB(this,'nope')">👎 Nope</button>
+        <button class="fb-btn" onclick="handleFB(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="handleFB(this,'swap')">🔄 Swap</button>
+      </div>
+    </div>
+
+    <!-- Catalú -->
+    <div class="rec-card" data-name="Catalú" data-type="restaurant">
+      <div class="tag tag-datenight">Date Night</div>
+      <h3>Catalú — Seasonal American, South End</h3>
+      <div class="body">Intimate room, market-driven menu that rotates with what's good. South End without the noise — this is the kind of spot you go when you want a real dinner, not a scene. Strong wine list and a kitchen that's clearly paying attention.</div>
+      <div class="chips">
+        <span class="chip">South End</span>
+        <span class="chip">$$$</span>
+        <span class="chip kids-no">Adults Only</span>
+        <span class="chip">Seasonal American</span>
+      </div>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="handleFB(this,'love')">❤️ Love it</button>
+        <button class="fb-btn" onclick="handleFB(this,'nope')">👎 Nope</button>
+        <button class="fb-btn" onclick="handleFB(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="handleFB(this,'swap')">🔄 Swap</button>
+      </div>
+    </div>
+
+    <!-- Fahrenheit -->
+    <div class="rec-card" data-name="Fahrenheit" data-type="restaurant">
+      <div class="tag tag-datenight">Date Night</div>
+      <h3>Fahrenheit — Rooftop Views, Uptown</h3>
+      <div class="body">21st floor of the Celsius building — the skyline view alone is worth it, but the sushi and modern American menu actually hold up. Good for a date night when you want atmosphere as part of the experience. Reserve a window table.</div>
+      <div class="chips">
+        <span class="chip">Uptown</span>
+        <span class="chip">$$$</span>
+        <span class="chip kids-no">Adults Only</span>
+        <span class="chip">Modern American / Sushi</span>
+      </div>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="handleFB(this,'love')">❤️ Love it</button>
+        <button class="fb-btn" onclick="handleFB(this,'nope')">👎 Nope</button>
+        <button class="fb-btn" onclick="handleFB(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="handleFB(this,'swap')">🔄 Swap</button>
+      </div>
+    </div>
+
+    <!-- Church & Union -->
+    <div class="rec-card" data-name="Church & Union" data-type="restaurant">
+      <div class="tag tag-datenight">Date Night</div>
+      <h3>Church & Union — Dramatic Room, Uptown</h3>
+      <div class="body">Historic building, soaring ceilings, moody lighting — the kind of space that makes dinner feel like an event. Modern American menu with some solid steaks and a raw bar. Good pick when you want something a little more elevated without going full tasting menu.</div>
+      <div class="chips">
+        <span class="chip">Uptown</span>
+        <span class="chip">$$$</span>
+        <span class="chip kids-no">Adults Only</span>
+        <span class="chip">Modern American</span>
+      </div>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="handleFB(this,'love')">❤️ Love it</button>
+        <button class="fb-btn" onclick="handleFB(this,'nope')">👎 Nope</button>
+        <button class="fb-btn" onclick="handleFB(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="handleFB(this,'swap')">🔄 Swap</button>
+      </div>
+    </div>
+
+    <div class="section-label">Group Dinner — Bring the Crew</div>
+
+    <!-- The Iberian Pig -->
+    <div class="rec-card" data-name="The Iberian Pig" data-type="restaurant">
+      <div class="tag tag-group">Group Dinner</div>
+      <h3>The Iberian Pig — Spanish Tapas, South End</h3>
+      <div class="body">Built for groups — everything comes out to share, the wine list is strong, and the room handles noise well. The bacon-wrapped dates and jamón board are non-negotiable. Good pick for a Blackburn/Breeden double-date or a bigger crew before a South End night out.</div>
+      <div class="chips">
+        <span class="chip">South End</span>
+        <span class="chip">$$</span>
+        <span class="chip kids-no">Adults Only</span>
+        <span class="chip">Spanish Tapas</span>
+      </div>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="handleFB(this,'love')">❤️ Love it</button>
+        <button class="fb-btn" onclick="handleFB(this,'nope')">👎 Nope</button>
+        <button class="fb-btn" onclick="handleFB(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="handleFB(this,'swap')">🔄 Swap</button>
+      </div>
+    </div>
+
+    <!-- Let's Meat KBBQ -->
+    <div class="rec-card" data-name="Let's Meat KBBQ" data-type="restaurant">
+      <div class="tag tag-group">Group Dinner</div>
+      <h3>Let's Meat KBBQ — Korean BBQ</h3>
+      <div class="body">The tabletop grill format is made for groups — everyone's involved, it goes long, and the soju flows freely. Book 6–8 people and make a full night of it. One of those places where the experience is as good as the food. Kyle Moore crowd would love this one.</div>
+      <div class="chips">
+        <span class="chip">Charlotte</span>
+        <span class="chip">$$</span>
+        <span class="chip kids-no">Adults Only</span>
+        <span class="chip">Korean BBQ</span>
+      </div>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="handleFB(this,'love')">❤️ Love it</button>
+        <button class="fb-btn" onclick="handleFB(this,'nope')">👎 Nope</button>
+        <button class="fb-btn" onclick="handleFB(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="handleFB(this,'swap')">🔄 Swap</button>
+      </div>
+    </div>
+
+    <!-- Puerta -->
+    <div class="rec-card" data-name="Puerta" data-type="restaurant">
+      <div class="tag tag-group">Group Dinner</div>
+      <h3>Puerta — Latin/Mexican, South End</h3>
+      <div class="body">Already a Go-To for a reason — the margaritas are dangerous, the tacos and ceviches are legit, and the energy is always right. South End location makes it easy to keep the night going after. Reliable group pick that doesn't require anyone to be adventurous.</div>
+      <div class="chips">
+        <span class="chip">South End</span>
+        <span class="chip">$$</span>
+        <span class="chip kids-no">Adults Only</span>
+        <span class="chip">Latin / Mexican</span>
+      </div>
+      <div class="feedback-row">
+        <button class="fb-btn" onclick="handleFB(this,'love')">❤️ Love it</button>
+        <button class="fb-btn" onclick="handleFB(this,'nope')">👎 Nope</button>
+        <button class="fb-btn" onclick="handleFB(this,'interested')">👀 Interested</button>
+        <button class="fb-btn" onclick="handleFB(this,'swap')">🔄 Swap</button>
+      </div>
+    </div>
+
+    <!-- Haberdish -->
+    <div class="rec-card" data-name="Haberdish" data-type="restaurant">
+      <div class="tag tag-group">Group Dinner</div>
+      <h3>Haberdish — Upscale Southern, NoDa</h3>
+      <div class="body">Rustic-modern space in NoDa with a Southern menu that punches above its weight — the fried chicken is the signature but the seasonal sides steal the show. Good for a bigger group that wants something more interesting than a standard steakhouse without breaking the bank.</div>
+      <div class="chips">
+        <span class="chip">NoDa</span>
+        <span class="chip">$$</span>
+        <span class="chip kids-no">Adults Only</span>
+        <span class="chip">Upscale Southern</span>
       </div>
       <div class="feedback-row">
         <button class="fb-btn" onclick="handleFB(this,'love')">❤️ Love it</button>

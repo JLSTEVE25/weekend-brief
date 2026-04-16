@@ -228,23 +228,11 @@ Return ONLY the complete, self-contained HTML. No markdown, no code fences, no e
         for f in friends
     ]
 
-    feedback_js = ""
-    if FEEDBACK_ENDPOINT:
-        feedback_js = f"""
-const FEEDBACK_ENDPOINT = "{FEEDBACK_ENDPOINT}";
-function sendFeedback(type, name, vote, person) {{
-  fetch(FEEDBACK_ENDPOINT, {{
-    method: "POST",
-    headers: {{"Content-Type": "application/json"}},
-    body: JSON.stringify({{type, name, vote, person}})
-  }}).then(r => r.json())
-    .then(d => showToast(d.ok ? "✓ Saved" : "⚠ Not saved"))
-    .catch(() => showToast("⚠ No connection"));
-}}"""
-    else:
-        feedback_js = f"""
-const FEEDBACK_ENDPOINT = "";
-function sendFeedback(type, name, vote, person) {{ /* endpoint not configured */ }}"""
+    # NOTE: We do NOT ask Claude to write the feedback JS. It kept dropping
+    # `mode: "no-cors"`, which breaks the cross-origin POST to Apps Script.
+    # Instead we inject a guaranteed-correct shim after Claude returns HTML
+    # (see "Feedback shim" block below). Claude just needs to call
+    # sendFeedback(type, name, vote, currentPerson) — our shim defines it.
 
     user_prompt = f"""
 Generate the Weekend Brief HTML for the weekend of {weekend_label}.
@@ -263,9 +251,6 @@ Generate the Weekend Brief HTML for the weekend of {weekend_label}.
 
 ## FRIENDS / FAMILIES (for "who to invite" callouts on events)
 {json.dumps(friends_summary, indent=2)}
-
-## FEEDBACK JAVASCRIPT (inject exactly as-is into the <script> block)
-{feedback_js}
 
 ## DESIGN REQUIREMENTS
 
@@ -303,7 +288,7 @@ Produce a complete, self-contained, mobile-first HTML file. Key requirements:
     - Nope and Swap → item disappears from next Monday's brief automatically (handled server-side).
     - Love → item gets priority placement next week.
     - Interested → item stays visible, flagged for follow-up.
-    - Inject the FEEDBACK JAVASCRIPT block exactly as provided above.
+    - DO NOT define sendFeedback yourself — it will be injected into the page after you finish. Just call it.
 
 7.  **Feedback footer** — sticky bottom bar showing reaction count only. No "Copy Feedback" button —
     feedback is sent automatically on every tap via sendFeedback().
@@ -342,6 +327,33 @@ Tone: knowledgeable friend, not a concierge.
     if html.endswith("```"):
         html = html[:-3]
     html = html.strip()
+
+    # ── Inject feedback shim (guaranteed-correct sendFeedback) ──
+    # This runs AFTER Claude's HTML, so it overrides whatever Claude wrote.
+    # mode:"no-cors" is required — without it, Chrome blocks the cross-origin
+    # POST to Apps Script and the UI shows "No connection".
+    feedback_shim = f"""
+<script>
+/* Injected by generate_brief.py — do not rely on Claude to write this. */
+(function() {{
+  window.FEEDBACK_ENDPOINT = {json.dumps(FEEDBACK_ENDPOINT)};
+  window.sendFeedback = function(type, name, vote, person) {{
+    if (!window.FEEDBACK_ENDPOINT) return;
+    fetch(window.FEEDBACK_ENDPOINT, {{
+      method: "POST",
+      mode: "no-cors",
+      body: JSON.stringify({{type: type, name: name, vote: vote, person: person}})
+    }}).then(function() {{ if (typeof showToast === 'function') showToast('✓ Sent'); }})
+      .catch(function() {{ if (typeof showToast === 'function') showToast('⚠ No connection'); }});
+  }};
+  window.postFeedback = window.sendFeedback; /* alias */
+}})();
+</script>
+"""
+    if "</body>" in html:
+        html = html.replace("</body>", feedback_shim + "</body>")
+    else:
+        html += feedback_shim
 
     # ── Save ──
     with open("index.html", "w", encoding="utf-8") as f:

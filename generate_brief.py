@@ -63,7 +63,9 @@ def fetch_airtable(base_id, filter_formula=None):
             break
         params["offset"] = offset
 
-    return [r["fields"] for r in records]
+    # Flatten record_id into fields so Claude sees it alongside name, price, etc.
+    # This lets the prompt require data-record-id="recXXX" on each card.
+    return [{"_record_id": r["id"], **r.get("fields", {})} for r in records]
 
 
 # ── Weather ──────────────────────────────────────────────────────────────────
@@ -268,7 +270,7 @@ Produce a complete, self-contained, mobile-first HTML file. Key requirements:
     - 3–4 curated rec-cards: restaurant/activity combos suited to the weather and family context.
       Each card has: tag pill (Saturday/Sunday/Date Night/Family), title, 2–3 sentence body,
       detail chips (neighborhood, price, kids-friendly), feedback row.
-    - Each card has a data-name attribute (exact restaurant/event name) and data-type ("restaurant"/"event").
+    - Each card MUST have: data-record-id="<_record_id from the source JSON>", data-name="<Name field>", data-type="restaurant" or "event". The _record_id is non-negotiable — the feedback loop depends on it.
     - John mode = kids-friendly places; Sara mode = date-night emphasis.
 
 5.  **Coming Up tab** — all upcoming events from 15–75 days out, sorted by date.
@@ -277,7 +279,7 @@ Produce a complete, self-contained, mobile-first HTML file. Key requirements:
       Kids Friendly event → suggest families where Kids at CCD = Yes.
       Date Night / adult event → suggest couples (no kids mention).
       Match by name from the friends list.
-    - Each card has a data-name and data-type="event" attribute.
+    - Each card MUST have: data-record-id="<_record_id>", data-name="<Name>", data-type="event".
     - Feedback row on each card.
 
 6.  **Feedback behavior (CRITICAL)**
@@ -330,19 +332,29 @@ Tone: knowledgeable friend, not a concierge.
 
     # ── Inject feedback shim (guaranteed-correct sendFeedback) ──
     # This runs AFTER Claude's HTML, so it overrides whatever Claude wrote.
-    # mode:"no-cors" is required — without it, Chrome blocks the cross-origin
-    # POST to Apps Script and the UI shows "No connection".
+    # - mode:"no-cors" is required (CORS blocks the cross-origin POST otherwise)
+    # - Record ID capture: a capture-phase click listener remembers the last
+    #   card with a data-record-id that was clicked, and sendFeedback includes
+    #   it in the payload so Apps Script can update by ID (not fragile name lookup).
     feedback_shim = f"""
 <script>
 /* Injected by generate_brief.py — do not rely on Claude to write this. */
 (function() {{
   window.FEEDBACK_ENDPOINT = {json.dumps(FEEDBACK_ENDPOINT)};
+
+  var lastCard = null;
+  document.addEventListener('click', function(e) {{
+    var card = e.target.closest('[data-record-id]');
+    if (card) lastCard = card;
+  }}, true);  /* capture phase — runs before onclick handlers */
+
   window.sendFeedback = function(type, name, vote, person) {{
     if (!window.FEEDBACK_ENDPOINT) return;
+    var recordId = lastCard ? lastCard.getAttribute('data-record-id') : null;
     fetch(window.FEEDBACK_ENDPOINT, {{
       method: "POST",
       mode: "no-cors",
-      body: JSON.stringify({{type: type, name: name, vote: vote, person: person}})
+      body: JSON.stringify({{type: type, name: name, vote: vote, person: person, recordId: recordId}})
     }}).then(function() {{ if (typeof showToast === 'function') showToast('✓ Sent'); }})
       .catch(function() {{ if (typeof showToast === 'function') showToast('⚠ No connection'); }});
   }};

@@ -4,11 +4,12 @@
 # review picks before the weekend.
 #
 # SETUP (one-time, in GitHub repo Settings → Secrets → Actions):
-#   AIRTABLE_API_KEY   — Airtable Personal Access Token
-#                        (airtable.com → Account → Developer Hub → Personal access tokens)
-#   ANTHROPIC_API_KEY  — Claude API key (console.anthropic.com)
-#
-# That's it — base IDs and table IDs are hardcoded in generate_brief.py (not sensitive).
+#   AIRTABLE_API_KEY      — Airtable Personal Access Token
+#   ANTHROPIC_API_KEY     — Claude API key (console.anthropic.com)
+#   FEEDBACK_ENDPOINT     — Google Apps Script Web App URL (from feedback_handler.gs deploy)
+#   GOOGLE_CLIENT_ID      — OAuth 2.0 Client ID (run get_google_token.py once to obtain all 3)
+#   GOOGLE_CLIENT_SECRET  — OAuth 2.0 Client Secret
+#   GOOGLE_REFRESH_TOKEN  — Long-lived refresh token
 #
 # FILE PLACEMENT in your GitHub repo:
 #   .github/workflows/generate-weekend-brief.yml   ← this file
@@ -25,7 +26,7 @@ on:
 
 jobs:
   generate:
-    name: Pull Airtable → Generate HTML → Commit
+    name: Pull Airtable + Calendar → Generate HTML → Commit
     runs-on: ubuntu-latest
 
     permissions:
@@ -42,13 +43,16 @@ jobs:
           python-version: '3.11'
 
       - name: Install Python dependencies
-        run: pip install requests anthropic
+        run: pip install requests anthropic google-auth google-auth-oauthlib
 
       - name: Generate Weekend Brief
         env:
-          AIRTABLE_API_KEY:  ${{ secrets.AIRTABLE_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          FEEDBACK_ENDPOINT: ${{ secrets.FEEDBACK_ENDPOINT }}
+          AIRTABLE_API_KEY:      ${{ secrets.AIRTABLE_API_KEY }}
+          ANTHROPIC_API_KEY:     ${{ secrets.ANTHROPIC_API_KEY }}
+          FEEDBACK_ENDPOINT:     ${{ secrets.FEEDBACK_ENDPOINT }}
+          GOOGLE_CLIENT_ID:      ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET:  ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN:  ${{ secrets.GOOGLE_REFRESH_TOKEN }}
         run: python generate_brief.py
 
       - name: Commit and push updated brief

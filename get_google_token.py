@@ -23,7 +23,10 @@ Steps:
 
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
+SCOPES = [
+    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/gmail.send",
+]
 
 
 def main():
@@ -75,6 +78,21 @@ def main():
     print()
     print("Done! You will NOT need to run this script again.")
     print("The refresh token is long-lived (does not expire unless revoked).")
+    print()
+    print("=" * 60)
+    print("NEXT STEPS:")
+    print("=" * 60)
+    print()
+    print("(a) You already ran this script — that was step 1.")
+    print("(b) You already completed the Google consent flow in the browser.")
+    print("(c) Copy the GOOGLE_REFRESH_TOKEN value printed above.")
+    print("(d) Go to: github.com/JLSTEVE25/weekend-brief →")
+    print("    Settings → Secrets and variables → Actions")
+    print("    → Find GOOGLE_REFRESH_TOKEN → Update secret")
+    print("    → Paste the new refresh token and save.")
+    print()
+    print("The new token now includes both calendar.readonly AND gmail.send,")
+    print("which is required for the Thursday Recap email to work.")
     print()
 
 

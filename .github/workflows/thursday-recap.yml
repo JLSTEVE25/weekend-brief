@@ -1,0 +1,46 @@
+# Thursday Recap — GitHub Actions Workflow
+# ==========================================
+# Runs every Thursday at 7 PM ET and emails John + Sara a summary of
+# that week's Weekend Brief feedback, plus 2-3 fresh ideas for next weekend.
+#
+# REQUIRED SECRETS (same as generate-weekend-brief.yml):
+#   AIRTABLE_API_KEY      — Airtable Personal Access Token
+#   ANTHROPIC_API_KEY     — Claude API key
+#   GOOGLE_CLIENT_ID      — OAuth 2.0 Client ID
+#   GOOGLE_CLIENT_SECRET  — OAuth 2.0 Client Secret
+#   GOOGLE_REFRESH_TOKEN  — Refresh token (must include gmail.send scope —
+#                           re-run get_google_token.py if you only had calendar.readonly)
+
+name: Thursday Recap Email
+
+on:
+  schedule:
+    - cron: '0 23 * * 4'   # Thursday 23:00 UTC = 7:00 PM ET
+  workflow_dispatch:         # Also triggerable manually
+
+jobs:
+  recap:
+    name: Summarize feedback → Email John + Sara
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install requests anthropic google-auth google-auth-oauthlib
+
+      - name: Send Thursday Recap Email
+        env:
+          AIRTABLE_API_KEY:      ${{ secrets.AIRTABLE_API_KEY }}
+          ANTHROPIC_API_KEY:     ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_CLIENT_ID:      ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET:  ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN:  ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+        run: python thursday_recap.py

@@ -7,6 +7,7 @@
 #   AIRTABLE_API_KEY      — Airtable Personal Access Token
 #   ANTHROPIC_API_KEY     — Claude API key (console.anthropic.com)
 #   FEEDBACK_ENDPOINT     — Google Apps Script Web App URL (from feedback_handler.gs deploy)
+#   PASSKEY_AUTH_URL      — Cloudflare Worker URL for passkey auth (e.g. https://weekend-brief-auth.<sub>.workers.dev)
 #   GOOGLE_CLIENT_ID      — OAuth 2.0 Client ID (run get_google_token.py once to obtain all 3)
 #   GOOGLE_CLIENT_SECRET  — OAuth 2.0 Client Secret
 #   GOOGLE_REFRESH_TOKEN  — Long-lived refresh token
@@ -50,6 +51,7 @@ jobs:
           AIRTABLE_API_KEY:      ${{ secrets.AIRTABLE_API_KEY }}
           ANTHROPIC_API_KEY:     ${{ secrets.ANTHROPIC_API_KEY }}
           FEEDBACK_ENDPOINT:     ${{ secrets.FEEDBACK_ENDPOINT }}
+          PASSKEY_AUTH_URL:      ${{ secrets.PASSKEY_AUTH_URL }}
           GOOGLE_CLIENT_ID:      ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET:  ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN:  ${{ secrets.GOOGLE_REFRESH_TOKEN }}

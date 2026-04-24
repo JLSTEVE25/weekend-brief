@@ -1,0 +1,17 @@
+{
+  "name": "weekend-brief-auth",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Worker handling WebAuthn passkey auth for the Weekend Brief.",
+  "main": "src/index.js",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "dependencies": {
+    "@simplewebauthn/server": "^10.0.0"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

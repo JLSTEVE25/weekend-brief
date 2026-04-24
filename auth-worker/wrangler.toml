@@ -1,0 +1,19 @@
+name = "weekend-brief-auth"
+main = "src/index.js"
+compatibility_date = "2024-09-01"
+
+# Bind the KV namespace for storing registered credential public keys.
+# Replace the id after running `wrangler kv:namespace create "PASSKEY_STORE"`.
+[[kv_namespaces]]
+binding = "PASSKEY_STORE"
+id = "24967bbb4380402aafd2a3fd4662ac98"
+
+# Public config vars (safe to commit).
+[vars]
+RP_ID      = "jlsteve25.github.io"
+RP_NAME    = "Weekend Brief"
+RP_ORIGIN  = "https://jlsteve25.github.io"
+
+# Secrets — set via `wrangler secret put`, NOT committed:
+#   wrangler secret put REGISTRATION_SECRET
+#   wrangler secret put JWT_SECRET

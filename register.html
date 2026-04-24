@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Register Passkey — Weekend Brief</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #1b2838, #2d4a6f, #3a7bd5);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .card {
+    background: #fff; border-radius: 18px; padding: 32px 24px;
+    max-width: 380px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+  h1 { margin: 0 0 4px; font-size: 22px; color: #1b2838; }
+  p.sub { margin: 0 0 24px; color: #6b7280; font-size: 14px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin: 14px 0 6px; }
+  input {
+    width: 100%; padding: 12px 14px; font-size: 16px;
+    border: 1px solid #d1d5db; border-radius: 10px; outline: none;
+    transition: border-color .15s;
+  }
+  input:focus { border-color: #3a7bd5; }
+  button {
+    width: 100%; margin-top: 22px; padding: 14px;
+    font-size: 16px; font-weight: 600; color: #fff;
+    background: linear-gradient(135deg, #2d4a6f, #3a7bd5);
+    border: 0; border-radius: 12px; cursor: pointer;
+    transition: opacity .15s;
+  }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .msg { margin-top: 16px; font-size: 14px; padding: 10px 12px; border-radius: 8px; display: none; }
+  .msg.ok  { background: #ecfdf5; color: #065f46; display: block; }
+  .msg.err { background: #fef2f2; color: #991b1b; display: block; }
+  .hint { font-size: 12px; color: #9ca3af; margin-top: 18px; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Register your passkey</h1>
+    <p class="sub">One-time setup. Use Face ID or Touch ID.</p>
+
+    <label for="name">Your name</label>
+    <input id="name" type="text" placeholder="John" autocomplete="off" />
+
+    <label for="secret">Registration code</label>
+    <input id="secret" type="password" placeholder="One-time code" autocomplete="off" />
+
+    <button id="go">Register passkey</button>
+
+    <div id="msg" class="msg"></div>
+    <p class="hint">After this, you'll use Face ID to open the brief.</p>
+  </div>
+
+<script>
+// IMPORTANT: Replace this with your deployed Worker URL.
+const AUTH_API = 'https://weekend-brief-auth.jlstevenson2.workers.dev';
+
+const $ = id => document.getElementById(id);
+const msg = (text, kind) => {
+  const el = $('msg');
+  el.textContent = text;
+  el.className = 'msg ' + (kind || '');
+};
+
+function b64urlToBuf(s) {
+  const pad = '='.repeat((4 - (s.length % 4)) % 4);
+  const bin = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+function bufToB64url(buf) {
+  const bytes = new Uint8Array(buf);
+  let s = '';
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function register() {
+  const userName = $('name').value.trim();
+  const secret   = $('secret').value.trim();
+  if (!userName || !secret) { msg('Fill in both fields.', 'err'); return; }
+  if (!window.PublicKeyCredential) {
+    msg('This browser does not support passkeys. Use Safari or Chrome on a modern device.', 'err');
+    return;
+  }
+
+  $('go').disabled = true;
+  msg('Starting…', 'ok');
+
+  try {
+    // 1. Ask server for registration options.
+    const beginResp = await fetch(AUTH_API + '/register/begin', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userName, secret }),
+    });
+    const options = await beginResp.json();
+    if (!beginResp.ok) throw new Error(options.error || 'Begin failed');
+
+    // 2. Convert base64url → ArrayBuffer for WebAuthn API.
+    options.challenge = b64urlToBuf(options.challenge);
+    options.user.id   = b64urlToBuf(options.user.id);
+    if (options.excludeCredentials) {
+      options.excludeCredentials = options.excludeCredentials.map(c => ({ ...c, id: b64urlToBuf(c.id) }));
+    }
+
+    msg('Follow your device prompt (Face ID / Touch ID)…', 'ok');
+    const cred = await navigator.credentials.create({ publicKey: options });
+
+    // 3. Send response back.
+    const body = {
+      userName,
+      credential: {
+        id: cred.id,
+        rawId: bufToB64url(cred.rawId),
+        type: cred.type,
+        response: {
+          clientDataJSON:    bufToB64url(cred.response.clientDataJSON),
+          attestationObject: bufToB64url(cred.response.attestationObject),
+        },
+        clientExtensionResults: cred.getClientExtensionResults ? cred.getClientExtensionResults() : {},
+      },
+    };
+    const completeResp = await fetch(AUTH_API + '/register/complete', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const result = await completeResp.json();
+    if (!completeResp.ok || !result.verified) throw new Error(result.error || 'Registration failed');
+
+    msg('✓ Passkey registered for ' + userName + '. You can close this page.', 'ok');
+  } catch (err) {
+    console.error(err);
+    msg('Failed: ' + (err.message || err), 'err');
+  } finally {
+    $('go').disabled = false;
+  }
+}
+
+$('go').addEventListener('click', register);
+</script>
+</body>
+</html>

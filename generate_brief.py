@@ -40,6 +40,9 @@ ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 # Google Apps Script feedback endpoint — set once deployed (GitHub Secret: FEEDBACK_ENDPOINT).
 FEEDBACK_ENDPOINT = os.environ.get("FEEDBACK_ENDPOINT", "")
 
+# Cloudflare Worker URL for passkey auth (GitHub Secret: PASSKEY_AUTH_URL).
+PASSKEY_AUTH_URL = os.environ.get("PASSKEY_AUTH_URL", "")
+
 # Google Calendar OAuth — optional; if not set, calendar section is skipped.
 GOOGLE_CLIENT_ID     = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
@@ -565,7 +568,12 @@ Generate the Weekend Brief HTML for the weekend of {weekend_label}.
 
 Produce a complete, self-contained, mobile-first HTML file. Key requirements:
 
-1.  **Password gate** — passcode is "stevenson". On correct entry, show the main app div.
+1.  **Auth gate** — Wrap the ENTIRE brief in `<div id="main-content" style="display:none">…</div>`.
+    Before it, render a centered login screen with id="auth-gate" on a navy-to-blue gradient background
+    (#1b2838 → #2d4a6f → #3a7bd5), containing the title "Weekend Brief", a short tagline, and ONE button
+    with id="passkey-login-btn" that reads "Sign in with Face ID / Touch ID". The button's onclick should
+    call `handlePasskeyLogin()`. Do NOT write any auth JavaScript yourself — it will be injected after you
+    finish. Do NOT include a password field anywhere.
 
 2.  **Section 1 — Header**
     Navy-to-blue gradient (#1b2838 → #2d4a6f → #3a7bd5). Shows "Weekend Brief",
@@ -660,8 +668,9 @@ Produce a complete, self-contained, mobile-first HTML file. Key requirements:
             Event=#e8fde8/#1a6b2a
     - Calendar badges [J] [S] [F]: small pill, #e5e7eb background, #6b7280 text
 
-11. **JS** — password unlock, tab switching, John/Sara toggle, feedback toggling,
+11. **JS** — tab switching, John/Sara toggle, feedback toggling,
     reaction count, showToast(). No external libraries. All inline.
+    Do NOT write any passkey/auth JS — that is injected separately.
 
 Write vivid, specific Charlotte copy. Two young boys (Will and Cam). Mix of family days and date nights.
 Tone: knowledgeable friend, not a concierge.
@@ -703,10 +712,18 @@ Tone: knowledgeable friend, not a concierge.
   window.sendFeedback = function(type, name, vote, person) {{
     if (!window.FEEDBACK_ENDPOINT) return;
     var recordId = lastCard ? lastCard.getAttribute('data-record-id') : null;
+    var authedUser = window.AUTHENTICATED_USER || null;
     fetch(window.FEEDBACK_ENDPOINT, {{
       method: "POST",
       mode: "no-cors",
-      body: JSON.stringify({{type: type, name: name, vote: vote, person: person, recordId: recordId}})
+      body: JSON.stringify({{
+        type: type,
+        name: name,
+        vote: vote,
+        person: person,
+        authenticatedUser: authedUser,
+        recordId: recordId
+      }})
     }}).then(function() {{ if (typeof showToast === 'function') showToast('✓ Sent'); }})
       .catch(function() {{ if (typeof showToast === 'function') showToast('⚠ No connection'); }});
   }};
@@ -714,10 +731,110 @@ Tone: knowledgeable friend, not a concierge.
 }})();
 </script>
 """
+    # ── Inject passkey auth shim ──
+    auth_shim = f"""
+<script>
+/* Injected by generate_brief.py — WebAuthn passkey auth. */
+(function() {{
+  var AUTH_API = {json.dumps(PASSKEY_AUTH_URL)};
+  if (!AUTH_API) {{ console.warn('PASSKEY_AUTH_URL not set; auth disabled.'); return; }}
+
+  function b64urlToBuf(s) {{
+    var pad = '='.repeat((4 - (s.length % 4)) % 4);
+    var bin = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/'));
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes.buffer;
+  }}
+  function bufToB64url(buf) {{
+    var bytes = new Uint8Array(buf), s = '';
+    for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    return btoa(s).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');
+  }}
+
+  function showApp() {{
+    var gate = document.getElementById('auth-gate');
+    var main = document.getElementById('main-content');
+    if (gate) gate.style.display = 'none';
+    if (main) main.style.display = 'block';
+  }}
+
+  async function checkSession() {{
+    try {{
+      var r = await fetch(AUTH_API + '/verify', {{ credentials: 'include' }});
+      var d = await r.json();
+      if (d.authenticated) {{
+        window.AUTHENTICATED_USER = d.user || null;
+        showApp();
+      }}
+    }} catch (e) {{ /* stay on login */ }}
+  }}
+
+  window.handlePasskeyLogin = async function() {{
+    if (!window.PublicKeyCredential) {{
+      alert('This browser does not support passkeys. Use Safari, Chrome, or Edge on a modern device.');
+      return;
+    }}
+    try {{
+      var beginResp = await fetch(AUTH_API + '/login/begin', {{
+        method: 'POST', credentials: 'include',
+        headers: {{ 'Content-Type': 'application/json' }},
+        body: '{{}}'
+      }});
+      var options = await beginResp.json();
+      if (!beginResp.ok) throw new Error(options.error || 'Begin failed');
+
+      options.challenge = b64urlToBuf(options.challenge);
+      if (options.allowCredentials) {{
+        options.allowCredentials = options.allowCredentials.map(function(c) {{
+          return Object.assign({{}}, c, {{ id: b64urlToBuf(c.id) }});
+        }});
+      }}
+
+      var cred = await navigator.credentials.get({{ publicKey: options }});
+      var body = {{
+        id: cred.id,
+        rawId: bufToB64url(cred.rawId),
+        type: cred.type,
+        response: {{
+          clientDataJSON:    bufToB64url(cred.response.clientDataJSON),
+          authenticatorData: bufToB64url(cred.response.authenticatorData),
+          signature:         bufToB64url(cred.response.signature),
+          userHandle: cred.response.userHandle ? bufToB64url(cred.response.userHandle) : null
+        }},
+        clientExtensionResults: cred.getClientExtensionResults ? cred.getClientExtensionResults() : {{}}
+      }};
+      var completeResp = await fetch(AUTH_API + '/login/complete', {{
+        method: 'POST', credentials: 'include',
+        headers: {{ 'Content-Type': 'application/json' }},
+        body: JSON.stringify(body)
+      }});
+      var result = await completeResp.json();
+      if (result.authenticated) {{
+        window.AUTHENTICATED_USER = result.user || null;
+        showApp();
+      }} else {{
+        alert('Authentication failed. Try again.');
+      }}
+    }} catch (e) {{
+      console.error('Passkey login error:', e);
+      alert('Passkey login failed. Make sure a passkey is registered for this site.');
+    }}
+  }};
+
+  if (document.readyState === 'loading') {{
+    document.addEventListener('DOMContentLoaded', checkSession);
+  }} else {{
+    checkSession();
+  }}
+}})();
+</script>
+"""
+
     if "</body>" in html:
-        html = html.replace("</body>", feedback_shim + "</body>")
+        html = html.replace("</body>", feedback_shim + auth_shim + "</body>")
     else:
-        html += feedback_shim
+        html += feedback_shim + auth_shim
 
     # ── Save ──
     with open("index.html", "w", encoding="utf-8") as f:

@@ -155,10 +155,7 @@ async function handleRegisterBegin(request, env) {
 
   const userId = new TextEncoder().encode(userName); // stable per-name user handle
   const existingIds = await getCredentialIndex(env);
-  const excludeCredentials = [];
-  for (const id of existingIds) {
-    excludeCredentials.push({ id: b64urlDecode(id), type: 'public-key' });
-  }
+  const excludeCredentials = existingIds.map(id => ({ id })); // v10: base64url string
 
   const options = await generateRegistrationOptions({
     rpName: env.RP_NAME,
@@ -218,19 +215,18 @@ async function handleRegisterComplete(request, env) {
   }
 
   const { credentialID, credentialPublicKey, counter } = verification.registrationInfo;
-  const credIdB64 = b64urlEncode(credentialID);
-
+  // @simplewebauthn v10: credentialID is already a base64url string; credentialPublicKey is Uint8Array.
   await env.PASSKEY_STORE.put(
-    `credential:${credIdB64}`,
+    `credential:${credentialID}`,
     JSON.stringify({
-      credentialID: credIdB64,
+      credentialID,
       publicKey: b64urlEncode(credentialPublicKey),
       counter,
       userName,
       createdAt: Date.now(),
     }),
   );
-  await addToCredentialIndex(env, credIdB64);
+  await addToCredentialIndex(env, credentialID);
   await env.PASSKEY_STORE.delete(challengeKey);
 
   return json({ verified: true, userName }, 200, env);
@@ -242,10 +238,7 @@ async function handleLoginBegin(request, env) {
     return json({ error: 'No registered passkeys' }, 400, env);
   }
 
-  const allowCredentials = existingIds.map(id => ({
-    id: b64urlDecode(id),
-    type: 'public-key',
-  }));
+  const allowCredentials = existingIds.map(id => ({ id })); // v10: base64url string
 
   const options = await generateAuthenticationOptions({
     rpID: env.RP_ID,
@@ -287,7 +280,7 @@ async function handleLoginComplete(request, env) {
       expectedOrigin: env.RP_ORIGIN,
       expectedRPID: env.RP_ID,
       authenticator: {
-        credentialID: b64urlDecode(credRecord.credentialID),
+        credentialID: credRecord.credentialID, // v10: base64url string
         credentialPublicKey: b64urlDecode(credRecord.publicKey),
         counter: credRecord.counter,
       },

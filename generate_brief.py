@@ -226,6 +226,91 @@ def get_weekend_calendar(friday, saturday, sunday):
     return all_events
 
 
+def get_radar_calendar(today):
+    """Pull calendar events for the 15–75 day radar window across all 3 calendars.
+    Returns a simplified list of dicts: {date, summary, calendar, all_day, time?}.
+    On failure, returns [] so the brief still generates."""
+    if not GOOGLE_AUTH_AVAILABLE:
+        print("   ⚠️  google-auth not installed — skipping radar calendar pull.")
+        return []
+
+    if not all([GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN]):
+        print("   ⚠️  GOOGLE_* secrets not set — skipping radar calendar pull.")
+        return []
+
+    try:
+        creds = Credentials(
+            token=None,
+            refresh_token=GOOGLE_REFRESH_TOKEN,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=GOOGLE_CLIENT_ID,
+            client_secret=GOOGLE_CLIENT_SECRET,
+            scopes=["https://www.googleapis.com/auth/calendar.readonly"],
+        )
+        creds.refresh(GoogleRequest())
+    except Exception as ex:
+        print(f"   ⚠️  Radar calendar auth failed: {ex}")
+        return []
+
+    window_start = today + datetime.timedelta(days=15)
+    window_end   = today + datetime.timedelta(days=75)
+    time_min = f"{window_start.isoformat()}T00:00:00-05:00"
+    time_max = f"{window_end.isoformat()}T23:59:59-05:00"
+
+    simplified = []
+    for calendar_label, calendar_id in CALENDAR_IDS.items():
+        cal_encoded = requests.utils.quote(calendar_id, safe="")
+        url = f"https://www.googleapis.com/calendar/v3/calendars/{cal_encoded}/events"
+        params = {
+            "timeMin":      time_min,
+            "timeMax":      time_max,
+            "singleEvents": "true",
+            "orderBy":      "startTime",
+            "maxResults":   250,
+        }
+        headers = {"Authorization": f"Bearer {creds.token}"}
+        try:
+            resp = requests.get(url, headers=headers, params=params, timeout=30)
+        except Exception as ex:
+            print(f"   ⚠️  Radar calendar fetch failed for {calendar_label}: {ex}")
+            continue
+
+        if resp.status_code != 200:
+            print(f"   ⚠️  Radar calendar fetch failed for {calendar_label}: {resp.status_code} {resp.text[:120]}")
+            continue
+
+        for item in resp.json().get("items", []):
+            start = item.get("start", {})
+            all_day = "date" in start and "dateTime" not in start
+            if all_day:
+                date_str = start.get("date", "")
+                simplified.append({
+                    "date":     date_str,
+                    "summary":  item.get("summary", "(No title)"),
+                    "calendar": calendar_label,
+                    "all_day":  True,
+                })
+            else:
+                dt_str = start.get("dateTime", "")
+                if not dt_str:
+                    continue
+                try:
+                    dt = datetime.datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+                    simplified.append({
+                        "date":     dt.date().isoformat(),
+                        "summary":  item.get("summary", "(No title)"),
+                        "time":     dt.strftime("%-I:%M %p"),
+                        "calendar": calendar_label,
+                        "all_day":  False,
+                    })
+                except Exception:
+                    continue
+
+    simplified.sort(key=lambda e: (e["date"], e.get("time", "")))
+    print(f"   Radar calendar events fetched: {len(simplified)}")
+    return simplified
+
+
 # ── Open Window Detection ────────────────────────────────────────────────────
 
 def find_open_windows(calendar_events, friday, saturday, sunday):
@@ -314,6 +399,50 @@ def parse_event_date(date_str):
     return None
 
 
+def parse_event_date_range(date_str):
+    """Parse an Airtable event date or date range into (start, end).
+    Handles single dates and ranges like 'Jul 22-26, 2026' or
+    'Sep 11-Nov 1, 2026'. Returns (None, None) if unparseable."""
+    if not date_str:
+        return (None, None)
+
+    s = date_str.strip()
+
+    single = parse_event_date(s)
+    if single:
+        return (single, single)
+
+    if "-" not in s:
+        return (None, None)
+
+    # Expect "<left>-<right>, <year>" shape
+    if "," not in s:
+        return (None, None)
+
+    left_part, year_part = s.rsplit(",", 1)
+    year_part = year_part.strip()
+    halves = left_part.split("-", 1)
+    if len(halves) != 2:
+        return (None, None)
+
+    left  = halves[0].strip()   # e.g. "Jul 22" or "Sep 11"
+    right = halves[1].strip()   # e.g. "26" or "Nov 1"
+
+    start = parse_event_date(f"{left}, {year_part}")
+
+    end = parse_event_date(f"{right}, {year_part}")
+    if end is None:
+        # Right side is just a day number — borrow month from the left side.
+        left_tokens = left.split()
+        if left_tokens:
+            month = left_tokens[0]
+            end = parse_event_date(f"{month} {right}, {year_part}")
+
+    if start and end and end >= start:
+        return (start, end)
+    return (None, None)
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -363,6 +492,33 @@ def main():
     radar_events.sort(key=lambda e: parse_event_date(e.get("Date", "")) or datetime.date.max)
 
     print(f"   Radar events (15–75 days): {len(radar_events)}")
+
+    # ── Radar calendar — detect conflicts for "Coming Up" cards ──
+    print("📅 Fetching radar-window calendar events (15–75 days)…")
+    radar_calendar = get_radar_calendar(today)
+
+    # Index calendar events by ISO date for O(1) lookup
+    cal_by_date = {}
+    for ce in radar_calendar:
+        cal_by_date.setdefault(ce["date"], []).append(ce)
+
+    for e in radar_events:
+        start, end = parse_event_date_range(e.get("Date", ""))
+        conflicts = []
+        if start and end:
+            d = start
+            while d <= end:
+                for ce in cal_by_date.get(d.isoformat(), []):
+                    entry = {
+                        "summary":  ce["summary"],
+                        "calendar": ce["calendar"],
+                        "all_day":  ce["all_day"],
+                    }
+                    if not ce["all_day"] and "time" in ce:
+                        entry["time"] = ce["time"]
+                    conflicts.append(entry)
+                d += datetime.timedelta(days=1)
+        e["calendar_conflicts"] = conflicts
 
     # ── Build Claude prompt ──
     system_prompt = """You are generating a Weekend Brief HTML page for the Stevenson family in Charlotte, NC.
@@ -476,6 +632,13 @@ Produce a complete, self-contained, mobile-first HTML file. Key requirements:
     Each: date, event name, venue, price range, "Who to invite" chip where relevant.
     Each card MUST have: data-record-id="<_record_id>", data-name="<Name>", data-type="event".
     Feedback row on each card.
+
+    **Calendar conflict awareness (IMPORTANT):**
+    - If an event has a non-empty `calendar_conflicts` array, show a subtle conflict indicator on the card.
+    - Use a small banner or badge: "⚠️ You have [summary] ([calendar]) that day" in a warm amber/yellow tone.
+    - If multiple conflicts, show the first one and "+N more" if needed.
+    - If `calendar_conflicts` is empty, show a subtle green "✅ Calendar looks clear" indicator.
+    - This helps the family decide whether to pursue an event or skip it because they're already booked.
 
 8.  **Feedback behavior (CRITICAL)**
     - Four buttons per card: Love it ❤️ / Nope 👎 / Interested 👀 / Swap 🔄

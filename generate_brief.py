@@ -121,13 +121,13 @@ def wmo_desc(code):
 
 
 def get_weekend_weather():
-    """Return weather dicts for Friday, Saturday, Sunday of the upcoming weekend."""
-    today = datetime.date.today()
+    """Return weather dicts for Friday, Saturday, Sunday of the current calendar week's weekend.
 
-    days_to_friday = (4 - today.weekday()) % 7
-    if days_to_friday == 0:
-        days_to_friday = 7  # always look ahead
-    friday   = today + datetime.timedelta(days=days_to_friday)
+    Mon–Sun all point at the same Fri–Sun window. Rolls over to next weekend on Monday.
+    """
+    today = datetime.date.today()
+    # Current week's Friday. Negative on Sat/Sun → Friday is in the past, which is what we want.
+    friday   = today + datetime.timedelta(days=(4 - today.weekday()))
     saturday = friday + datetime.timedelta(days=1)
     sunday   = friday + datetime.timedelta(days=2)
 
@@ -143,6 +143,8 @@ def get_weekend_weather():
         ],
         "temperature_unit": "fahrenheit",
         "timezone": "America/New_York",
+        # past_days lets Open-Meteo return observed weather for Fri/Sat when run on Sat/Sun.
+        "past_days": 2,
         "start_date": friday.isoformat(),
         "end_date":   sunday.isoformat(),
     }

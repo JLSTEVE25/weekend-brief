@@ -21,8 +21,10 @@ Optional: verify AIRTABLE_TABLE_* names match your actual Airtable base.
 """
 
 import os
+import sys
 import json
 import datetime
+from zoneinfo import ZoneInfo
 import requests
 import anthropic
 
@@ -37,6 +39,8 @@ except ImportError:
 AIRTABLE_API_KEY  = os.environ["AIRTABLE_API_KEY"]
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 
+CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
+
 # Google Apps Script feedback endpoint — set once deployed (GitHub Secret: FEEDBACK_ENDPOINT).
 FEEDBACK_ENDPOINT = os.environ.get("FEEDBACK_ENDPOINT", "")
 
@@ -48,22 +52,28 @@ GOOGLE_CLIENT_ID     = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 GOOGLE_REFRESH_TOKEN = os.environ.get("GOOGLE_REFRESH_TOKEN", "")
 
+# Calendar IDs — overridable via env, sensible defaults baked in.
 CALENDAR_IDS = {
-    "John":   "jlstevenson2@gmail.com",
-    "Sara":   "sara.smith.stevenson@gmail.com",
-    "Family": "family00679441475095031757@group.calendar.google.com",
+    "John":   os.environ.get("WB_CAL_JOHN",   "jlstevenson2@gmail.com"),
+    "Sara":   os.environ.get("WB_CAL_SARA",   "sara.smith.stevenson@gmail.com"),
+    "Family": os.environ.get("WB_CAL_FAMILY", "family00679441475095031757@group.calendar.google.com"),
 }
 
-# Base IDs and table IDs are hardcoded (not secrets — just structural IDs).
-RESTAURANTS_BASE_ID = "appyUA9SEI4R0grrH"
-EVENTS_BASE_ID      = "appQEVLUQt03RUIgE"
-FRIENDS_BASE_ID     = "appTGMNTmT9weRbjL"
-TABLE_NAME          = "Imported table"   # All three bases use this table name
+# Airtable base IDs — overridable via env, sensible defaults baked in.
+RESTAURANTS_BASE_ID = os.environ.get("WB_AT_RESTAURANTS_BASE", "appyUA9SEI4R0grrH")
+EVENTS_BASE_ID      = os.environ.get("WB_AT_EVENTS_BASE",      "appQEVLUQt03RUIgE")
+FRIENDS_BASE_ID     = os.environ.get("WB_AT_FRIENDS_BASE",     "appTGMNTmT9weRbjL")
+TABLE_NAME          = os.environ.get("WB_AT_TABLE_NAME",       "Imported table")
+
+# Max radar events passed to Claude (anything beyond this gets logged + dropped).
+RADAR_EVENT_CAP = int(os.environ.get("WB_RADAR_CAP", "40"))
 
 AT_HEADERS = {"Authorization": f"Bearer {AIRTABLE_API_KEY}"}
 
 # Charlotte, NC coordinates
 LAT, LON = 35.2271, -80.8431
+
+ET = ZoneInfo("America/New_York")
 
 
 # ── Airtable helpers ─────────────────────────────────────────────────────────
@@ -143,8 +153,6 @@ def get_weekend_weather():
         ],
         "temperature_unit": "fahrenheit",
         "timezone": "America/New_York",
-        # past_days lets Open-Meteo return observed weather for Fri/Sat when run on Sat/Sun.
-        "past_days": 2,
         "start_date": friday.isoformat(),
         "end_date":   sunday.isoformat(),
     }
@@ -337,20 +345,16 @@ def find_open_windows(calendar_events, friday, saturday, sunday):
         """True if no non-all-day event overlaps this ET hour range."""
         for e in events:
             if e["all_day"]:
-                # All-day events flag the whole day as "something's happening"
-                # but don't block specific time windows
                 continue
             s_str = e["start"]
             end_str = e["end"]
             if "T" not in s_str:
                 continue
             try:
-                # Normalize timezone offset to compare as UTC offset hours
-                s_dt   = datetime.datetime.fromisoformat(s_str.replace("Z", "+00:00"))
-                end_dt = datetime.datetime.fromisoformat(end_str.replace("Z", "+00:00"))
-                # Convert to naive ET (UTC-4 or UTC-5; use UTC-5 as conservative approximation)
-                s_et   = s_dt.hour   + s_dt.utcoffset().total_seconds() / 3600 + 5  # adjust to ET
-                end_et = end_dt.hour + end_dt.utcoffset().total_seconds() / 3600 + 5
+                s_dt   = datetime.datetime.fromisoformat(s_str.replace("Z", "+00:00")).astimezone(ET)
+                end_dt = datetime.datetime.fromisoformat(end_str.replace("Z", "+00:00")).astimezone(ET)
+                s_et   = s_dt.hour   + s_dt.minute   / 60
+                end_et = end_dt.hour + end_dt.minute / 60
                 if s_et < h_end and end_et > h_start:
                     return False
             except Exception:
@@ -450,7 +454,26 @@ def parse_event_date_range(date_str):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+def is_correct_schedule_slot(expected_et_hour):
+    """For scheduled GitHub Actions runs, only proceed if the current ET hour matches.
+
+    We deploy two crons (EDT + EST) so a 10am ET run actually lands at 10am ET
+    year-round. Whichever one fires at the wrong UTC offset exits cleanly.
+    Manual runs (workflow_dispatch) always proceed.
+    """
+    if os.environ.get("GITHUB_EVENT_NAME", "") != "schedule":
+        return True
+    now_et = datetime.datetime.now(ET)
+    if now_et.hour == expected_et_hour:
+        return True
+    print(f"⏭️  Scheduled run at {now_et.strftime('%H:%M %Z')} — not the {expected_et_hour:02d}:00 ET slot, exiting.")
+    return False
+
+
 def main():
+    if not is_correct_schedule_slot(10):
+        sys.exit(0)
+
     print("📡 Fetching Airtable data…")
 
     # Restaurants — exclude Vetoed and Nope/Swap feedback
@@ -540,33 +563,17 @@ Return ONLY the complete, self-contained HTML. No markdown, no code fences, no e
         for f in friends
     ]
 
+    if len(radar_events) > RADAR_EVENT_CAP:
+        print(f"   ⚠️  Trimming radar events: {len(radar_events)} → {RADAR_EVENT_CAP} (raise WB_RADAR_CAP to keep more)")
+    radar_events_for_prompt = radar_events[:RADAR_EVENT_CAP]
+
     # NOTE: We do NOT ask Claude to write the feedback JS. It kept dropping
     # `mode: "no-cors"`, which breaks the cross-origin POST to Apps Script.
     # Instead we inject a guaranteed-correct shim after Claude returns HTML.
     # Claude just needs to call sendFeedback(type, name, vote, currentPerson).
 
-    user_prompt = f"""
-Generate the Weekend Brief HTML for the weekend of {weekend_label}.
-
-## WEATHER DATA (Charlotte, NC)
-{json.dumps(weather, indent=2)}
-
-## CALENDAR EVENTS (John + Sara + Family)
-{json.dumps(calendar_events, indent=2)}
-
-## OPEN WINDOWS (free time slots this weekend)
-{json.dumps(open_windows, indent=2)}
-
-## COMING UP — EVENTS (15–75 days out, for the "Coming Up" tab)
-{json.dumps(radar_events[:25], indent=2)}
-
-## RESTAURANTS (full list — use for Suggestions)
-{json.dumps(restaurants, indent=2)}
-
-## FRIENDS / FAMILIES (for "who to invite" callouts)
-{json.dumps(friends_summary, indent=2)}
-
-## DESIGN REQUIREMENTS
+    # Static design requirements — identical every run, sent as a cached prompt block.
+    static_instructions = """## DESIGN REQUIREMENTS
 
 Produce a complete, self-contained, mobile-first HTML file. Key requirements:
 
@@ -678,14 +685,42 @@ Write vivid, specific Charlotte copy. Two young boys (Will and Cam). Mix of fami
 Tone: knowledgeable friend, not a concierge.
 """
 
-    print("🤖 Calling Claude API to generate HTML…")
+    # Dynamic data — changes every run, sent uncached.
+    dynamic_data = f"""Generate the Weekend Brief HTML for the weekend of {weekend_label}.
+
+## WEATHER DATA (Charlotte, NC)
+{json.dumps(weather, indent=2)}
+
+## CALENDAR EVENTS (John + Sara + Family)
+{json.dumps(calendar_events, indent=2)}
+
+## OPEN WINDOWS (free time slots this weekend)
+{json.dumps(open_windows, indent=2)}
+
+## COMING UP — EVENTS (15–75 days out, for the "Coming Up" tab)
+{json.dumps(radar_events_for_prompt, indent=2)}
+
+## RESTAURANTS (full list — use for Suggestions)
+{json.dumps(restaurants, indent=2)}
+
+## FRIENDS / FAMILIES (for "who to invite" callouts)
+{json.dumps(friends_summary, indent=2)}
+"""
+
+    print(f"🤖 Calling Claude API to generate HTML (model: {CLAUDE_MODEL})…")
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
     message = client.messages.create(
-        model="claude-opus-4-6",
+        model=CLAUDE_MODEL,
         max_tokens=16000,
         system=system_prompt,
-        messages=[{"role": "user", "content": user_prompt}],
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": static_instructions, "cache_control": {"type": "ephemeral"}},
+                {"type": "text", "text": dynamic_data},
+            ],
+        }],
     )
 
     html = message.content[0].text.strip()
@@ -847,7 +882,11 @@ Tone: knowledgeable friend, not a concierge.
         f.write(html)
 
     print(f"✅ Weekend Brief written for {weekend_label}")
-    print(f"   Tokens used: {message.usage.input_tokens} in / {message.usage.output_tokens} out")
+    usage = message.usage
+    cache_create = getattr(usage, "cache_creation_input_tokens", 0) or 0
+    cache_read   = getattr(usage, "cache_read_input_tokens", 0) or 0
+    print(f"   Tokens: {usage.input_tokens} in / {usage.output_tokens} out "
+          f"(cache: {cache_read} read, {cache_create} write)")
 
 
 if __name__ == "__main__":

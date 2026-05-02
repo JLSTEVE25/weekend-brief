@@ -677,9 +677,10 @@ Produce a complete, self-contained, mobile-first HTML file. Key requirements:
             Event=#e8fde8/#1a6b2a
     - Calendar badges [J] [S] [F]: small pill, #e5e7eb background, #6b7280 text
 
-11. **JS** — tab switching, John/Sara toggle, feedback toggling,
-    reaction count, showToast(). No external libraries. All inline.
-    Do NOT write any passkey/auth JS — that is injected separately.
+11. **JS** — Do NOT write ANY JavaScript. All UI handlers
+    (setPerson, switchTab, handleFeedback, showToast) plus the
+    feedback shim and passkey auth are injected by Python after
+    your HTML is generated. Do not include any `<script>` tags.
 
 Write vivid, specific Charlotte copy. Two young boys (Will and Cam). Mix of family days and date nights.
 Tone: knowledgeable friend, not a concierge.
@@ -732,6 +733,81 @@ Tone: knowledgeable friend, not a concierge.
     if html.endswith("```"):
         html = html[:-3]
     html = html.strip()
+
+    # ── Inject UI shim (tabs, person toggle, feedback handler, toast) ──
+    # Defined here (not in the LLM prompt) so it can never be truncated by
+    # token limits. Robust to past variations in the LLM-generated HTML
+    # (e.g. handleFeedback may be called with 2 or 4 args; toast id may
+    # be 'toast' or 'toast-msg').
+    ui_shim = """
+<script>
+/* Injected by generate_brief.py — UI handlers. */
+(function() {
+  var currentPerson = 'john';
+  var totalReactions = 0;
+
+  window.setPerson = function(p) {
+    currentPerson = p;
+    var j = document.getElementById('btn-john');
+    var s = document.getElementById('btn-sara');
+    if (j) j.classList.toggle('active', p === 'john');
+    if (s) s.classList.toggle('active', p === 'sara');
+    if (p === 'sara') document.body.classList.add('sara-mode');
+    else document.body.classList.remove('sara-mode');
+  };
+
+  window.switchTab = function(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(function(btn) {
+      var oc = btn.getAttribute('onclick') || '';
+      var dt = btn.getAttribute('data-tab');
+      var match = (dt === tabId)
+        || (oc.indexOf("'" + tabId + "'") !== -1)
+        || (oc.indexOf('"' + tabId + '"') !== -1);
+      btn.classList.toggle('active', match);
+    });
+    document.querySelectorAll('.tab-content').forEach(function(tc) {
+      tc.classList.toggle('active', tc.id === 'tab-' + tabId);
+    });
+  };
+
+  window.handleFeedback = function() {
+    var btn = arguments[0], type, name, vote;
+    if (arguments.length >= 4) {
+      type = arguments[1]; name = arguments[2]; vote = arguments[3];
+    } else {
+      vote = arguments[1];
+      var card = btn.closest('[data-record-id], .suggestion-card, .coming-card');
+      type = (card && card.dataset.type) ? card.dataset.type : 'unknown';
+      name = (card && card.dataset.name) ? card.dataset.name : 'unknown';
+    }
+    var row = btn.parentElement;
+    var wasSelected = btn.classList.contains('selected-' + vote);
+    row.querySelectorAll('.fb-btn').forEach(function(b) { b.className = 'fb-btn'; });
+    if (!wasSelected) {
+      btn.classList.add('selected-' + vote);
+      totalReactions++;
+      if (typeof window.sendFeedback === 'function') {
+        window.sendFeedback(type, name, vote, currentPerson);
+      }
+      var emoji = { love: '❤️', nope: '👎', interested: '👀', swap: '🔄' };
+      showToast((emoji[vote] || '') + ' Got it!');
+    } else {
+      totalReactions = Math.max(0, totalReactions - 1);
+    }
+    var counter = document.getElementById('reaction-count');
+    if (counter) counter.textContent = totalReactions;
+  };
+
+  window.showToast = function(msg) {
+    var t = document.getElementById('toast-msg') || document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(function() { t.classList.remove('show'); }, 2000);
+  };
+})();
+</script>
+"""
 
     # ── Inject feedback shim (guaranteed-correct sendFeedback) ──
     feedback_shim = f"""
@@ -869,9 +945,9 @@ Tone: knowledgeable friend, not a concierge.
 """
 
     if "</body>" in html:
-        html = html.replace("</body>", feedback_shim + auth_shim + "</body>")
+        html = html.replace("</body>", ui_shim + feedback_shim + auth_shim + "</body>")
     else:
-        html += feedback_shim + auth_shim
+        html += ui_shim + feedback_shim + auth_shim
 
     # ── Save ──
     with open("index.html", "w", encoding="utf-8") as f:

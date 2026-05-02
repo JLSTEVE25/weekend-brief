@@ -858,16 +858,73 @@
 </div><!-- end main-content -->
 
 <script>
-  // ── State ──────────────────────────────────────────────────────────────────
+/* Injected by generate_brief.py — UI handlers. */
+(function() {
   var currentPerson = 'john';
   var totalReactions = 0;
 
-  // ── Person toggle ──────────────────────────────────────────────────────────
-  function setPerson(p) {
+  window.setPerson = function(p) {
     currentPerson = p;
-    document.getElementById('btn-john').classList.toggle('active', p === 'john');
-    document.getElementById('btn-sara').classList.toggle('active', p === 'sara');
-    document.
+    var j = document.getElementById('btn-john');
+    var s = document.getElementById('btn-sara');
+    if (j) j.classList.toggle('active', p === 'john');
+    if (s) s.classList.toggle('active', p === 'sara');
+    if (p === 'sara') document.body.classList.add('sara-mode');
+    else document.body.classList.remove('sara-mode');
+  };
+
+  window.switchTab = function(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(function(btn) {
+      var oc = btn.getAttribute('onclick') || '';
+      var dt = btn.getAttribute('data-tab');
+      var match = (dt === tabId)
+        || (oc.indexOf("'" + tabId + "'") !== -1)
+        || (oc.indexOf('"' + tabId + '"') !== -1);
+      btn.classList.toggle('active', match);
+    });
+    document.querySelectorAll('.tab-content').forEach(function(tc) {
+      tc.classList.toggle('active', tc.id === 'tab-' + tabId);
+    });
+  };
+
+  window.handleFeedback = function() {
+    var btn = arguments[0], type, name, vote;
+    if (arguments.length >= 4) {
+      type = arguments[1]; name = arguments[2]; vote = arguments[3];
+    } else {
+      vote = arguments[1];
+      var card = btn.closest('[data-record-id], .suggestion-card, .coming-card');
+      type = (card && card.dataset.type) ? card.dataset.type : 'unknown';
+      name = (card && card.dataset.name) ? card.dataset.name : 'unknown';
+    }
+    var row = btn.parentElement;
+    var wasSelected = btn.classList.contains('selected-' + vote);
+    row.querySelectorAll('.fb-btn').forEach(function(b) { b.className = 'fb-btn'; });
+    if (!wasSelected) {
+      btn.classList.add('selected-' + vote);
+      totalReactions++;
+      if (typeof window.sendFeedback === 'function') {
+        window.sendFeedback(type, name, vote, currentPerson);
+      }
+      var emoji = { love: '❤️', nope: '👎', interested: '👀', swap: '🔄' };
+      showToast((emoji[vote] || '') + ' Got it!');
+    } else {
+      totalReactions = Math.max(0, totalReactions - 1);
+    }
+    var counter = document.getElementById('reaction-count');
+    if (counter) counter.textContent = totalReactions;
+  };
+
+  window.showToast = function(msg) {
+    var t = document.getElementById('toast-msg') || document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(function() { t.classList.remove('show'); }, 2000);
+  };
+})();
+</script>
+
 <script>
 /* Injected by generate_brief.py — do not rely on Claude to write this. */
 (function() {

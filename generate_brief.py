@@ -485,51 +485,73 @@ def render_weather_html(weather):
         return '<div class="weather-day"><span class="weather-day-label">No data</span></div>'
     html_parts = []
     for day in weather:
-        rain_class = ' high-rain' if day.get("rain_chance", 0) >= 50 else ''
+        rain_pct = day.get("rain_pct", 0)
+        rain_class = ' high-rain' if rain_pct >= 50 else ''
         html_parts.append(f'''      <div class="weather-day">
-        <div class="weather-day-label">{day["label"]}</div>
-        <div class="weather-icon">{get_weather_icon(day.get("code", 1))}</div>
+        <div class="weather-day-label">{day["day"]}</div>
+        <div class="weather-icon">{day.get("icon", "🌤")}</div>
         <div class="weather-temps">{day["high"]}° <span class="weather-low">{day["low"]}°</span></div>
-        <div class="weather-rain{rain_class}">💧 {day["rain_chance"]}%</div>
+        <div class="weather-rain{rain_class}">💧 {rain_pct}%</div>
       </div>''')
     return "\n".join(html_parts)
 
 
 def render_timeline_html(calendar_events, open_windows):
-    if not calendar_events:
+    if not calendar_events and not open_windows:
         return '    <div class="calendar-empty">Calendar sync coming soon</div>'
-    days = {}
+    days = {"FRIDAY": [], "SATURDAY": [], "SUNDAY": []}
+    day_map = {"fri": "FRIDAY", "sat": "SATURDAY", "sun": "SUNDAY",
+               "friday": "FRIDAY", "saturday": "SATURDAY", "sunday": "SUNDAY"}
     for ev in calendar_events:
-        day_label = ev.get("day", "")
-        if day_label not in days:
-            days[day_label] = []
-        days[day_label].append(ev)
+        start = ev.get("start", "")
+        if "T" in start:
+            try:
+                dt = datetime.datetime.fromisoformat(start)
+                day_key = dt.strftime("%A").upper()
+                sort_key = dt.strftime("%H:%M")
+            except ValueError:
+                continue
+        else:
+            try:
+                dt = datetime.date.fromisoformat(start)
+                day_key = dt.strftime("%A").upper()
+                sort_key = "00:00"
+            except ValueError:
+                continue
+        if day_key in days:
+            ev["_sort_key"] = sort_key
+            ev["_time_display"] = dt.strftime("%-I:%M %p").lstrip("0") if "T" in start else "All day"
+            days[day_key].append(ev)
     for w in open_windows:
-        day_label = w.get("day", "")
-        if day_label not in days:
-            days[day_label] = []
-        days[day_label].append({"_is_free": True, "label": w.get("label", "Free time ✨"),
-                                "time": w.get("start", ""), "day": day_label})
-    day_order = ["FRIDAY", "SATURDAY", "SUNDAY"]
+        day_key = day_map.get(w.get("day", "").lower(), "")
+        if day_key in days:
+            block = w.get("window", "evening")
+            label = f"Nothing planned ✨" if block != "morning" else "Morning free ✨"
+            days[day_key].append({
+                "_is_free": True, "_sort_key": w.get("start_time", "17:00"),
+                "_time_display": w.get("start_time", ""), "label": label,
+            })
     html_parts = ['    <div class="timeline-card">']
-    for day_name in day_order:
-        events = days.get(day_name, [])
+    for day_name in ["FRIDAY", "SATURDAY", "SUNDAY"]:
+        events = days[day_name]
         if not events:
+            html_parts.append(f'      <div class="timeline-day-header">{day_name}</div>')
+            html_parts.append('      <div class="timeline-event free-window"><div class="timeline-connector"><div class="timeline-dot"></div></div><div class="timeline-body"><span class="free-text">All day free ✨</span></div></div>')
             continue
-        events.sort(key=lambda e: e.get("time", "99:99"))
+        events.sort(key=lambda e: e.get("_sort_key", "99:99"))
         html_parts.append(f'      <div class="timeline-day-header">{day_name}</div>')
         for ev in events:
             if ev.get("_is_free"):
                 html_parts.append(f'''      <div class="timeline-event free-window">
         <div class="timeline-connector"><div class="timeline-dot"></div></div>
-        <div class="timeline-time">{ev.get("time", "")}</div>
+        <div class="timeline-time">{ev["_time_display"]}</div>
         <div class="timeline-body"><span class="free-text">{ev["label"]}</span></div>
       </div>''')
             else:
                 cal = ev.get("calendar", "family")
                 badge_class = "john" if "john" in cal.lower() else "sara" if "sara" in cal.lower() else "family"
                 badge_letter = "J" if badge_class == "john" else "S" if badge_class == "sara" else "F"
-                time_str = ev.get("time", "All day") if not ev.get("all_day") else "All day"
+                time_str = ev.get("_time_display", "All day")
                 location_html = f'<div class="timeline-location">{ev["location"]}</div>' if ev.get("location") else ''
                 html_parts.append(f'''      <div class="timeline-event has-event">
         <div class="timeline-connector"><div class="timeline-dot"></div></div>

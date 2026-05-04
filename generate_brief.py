@@ -526,10 +526,16 @@ def render_timeline_html(calendar_events, open_windows):
         day_key = day_map.get(w.get("day", "").lower(), "")
         if day_key in days:
             block = w.get("window", "evening")
-            label = f"Nothing planned ✨" if block != "morning" else "Morning free ✨"
+            label = "Nothing planned ✨" if block != "morning" else "Morning free ✨"
+            raw_time = w.get("start_time", "17:00")
+            try:
+                t = datetime.datetime.strptime(raw_time, "%H:%M")
+                display_time = t.strftime("%-I:%M %p").lstrip("0")
+            except ValueError:
+                display_time = raw_time
             days[day_key].append({
-                "_is_free": True, "_sort_key": w.get("start_time", "17:00"),
-                "_time_display": w.get("start_time", ""), "label": label,
+                "_is_free": True, "_sort_key": raw_time,
+                "_time_display": display_time, "label": label,
             })
     html_parts = ['    <div class="timeline-card">']
     for day_name in ["FRIDAY", "SATURDAY", "SUNDAY"]:
@@ -601,13 +607,12 @@ def render_suggestion_card(s):
 
 
 def render_coming_up_card(event, notes_text):
-    from datetime import datetime as dt
     date_str = event.get("Date", "")
-    try:
-        d = dt.strptime(date_str, "%Y-%m-%d")
+    d = parse_event_date(date_str)
+    if d:
         month_str = d.strftime("%b").upper()
         day_num = d.day
-    except (ValueError, TypeError):
+    else:
         month_str = "TBD"
         day_num = "?"
     name = event.get("Name", "Event")

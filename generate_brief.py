@@ -765,7 +765,8 @@ Tone: knowledgeable friend, not a concierge.
         || (oc.indexOf('"' + tabId + '"') !== -1);
       btn.classList.toggle('active', match);
     });
-    document.querySelectorAll('.tab-content').forEach(function(tc) {
+    /* Handle .tab-content (old) and .tab-panel (new Claude variants) */
+    document.querySelectorAll('.tab-content, .tab-panel').forEach(function(tc) {
       tc.classList.toggle('active', tc.id === 'tab-' + tabId);
     });
   };
@@ -776,21 +777,33 @@ Tone: knowledgeable friend, not a concierge.
       type = arguments[1]; name = arguments[2]; vote = arguments[3];
     } else {
       vote = arguments[1];
-      var card = btn.closest('[data-record-id], .suggestion-card, .coming-card');
+      var card = btn.closest('[data-record-id], .suggestion-card, .coming-card, .card, .event-card');
       type = (card && card.dataset.type) ? card.dataset.type : 'unknown';
       name = (card && card.dataset.name) ? card.dataset.name : 'unknown';
     }
     var row = btn.parentElement;
-    var wasSelected = btn.classList.contains('selected-' + vote);
-    row.querySelectorAll('.fb-btn').forEach(function(b) { b.className = 'fb-btn'; });
+    /* Detect style: new Claude HTML uses feedback-btn + vote as separate class;
+       old style uses fb-btn + selected-{vote} combined class. */
+    var isNewStyle = btn.classList.contains('feedback-btn');
+    var wasSelected = isNewStyle
+      ? btn.classList.contains('selected')
+      : btn.classList.contains('selected-' + vote);
+    row.querySelectorAll('.fb-btn, .feedback-btn').forEach(function(b) {
+      b.classList.remove('selected', 'selected-love', 'selected-nope', 'selected-interested', 'selected-swap');
+      if (!isNewStyle) { b.className = 'fb-btn'; }
+    });
     if (!wasSelected) {
-      btn.classList.add('selected-' + vote);
+      if (isNewStyle) {
+        btn.classList.add('selected');
+      } else {
+        btn.classList.add('selected-' + vote);
+      }
       totalReactions++;
       if (typeof window.sendFeedback === 'function') {
         window.sendFeedback(type, name, vote, currentPerson);
       }
       var emoji = { love: '❤️', nope: '👎', interested: '👀', swap: '🔄' };
-      showToast((emoji[vote] || '') + ' Got it!');
+      window.showToast((emoji[vote] || '') + ' Got it!');
     } else {
       totalReactions = Math.max(0, totalReactions - 1);
     }
@@ -800,10 +813,19 @@ Tone: knowledgeable friend, not a concierge.
 
   window.showToast = function(msg) {
     var t = document.getElementById('toast-msg') || document.getElementById('toast');
-    if (!t) return;
+    if (!t) {
+      /* Claude didn't include a toast element — create one on the fly. */
+      t = document.createElement('div');
+      t.id = 'toast-msg';
+      t.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);' +
+        'background:#1b2838;color:#fff;padding:10px 20px;border-radius:24px;font-size:14px;' +
+        'font-weight:600;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap;';
+      document.body.appendChild(t);
+    }
     t.textContent = msg;
     t.classList.add('show');
-    setTimeout(function() { t.classList.remove('show'); }, 2000);
+    t.style.opacity = '1';
+    setTimeout(function() { t.classList.remove('show'); t.style.opacity = '0'; }, 2000);
   };
 })();
 </script>

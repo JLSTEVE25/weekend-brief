@@ -1,20 +1,20 @@
 # Weekend Brief — GitHub Actions Workflow
 # =========================================
-# Runs every Monday at 10 AM ET so the family has all week to
-# review picks before the weekend.
+# Runs every Monday at 4 AM ET so the brief is ready first thing Monday morning.
+#
+# DST handling: GitHub Actions cron is UTC-only and does not auto-adjust.
+# We schedule TWO crons (one for EDT, one for EST). The Python script
+# checks the current ET hour and exits cleanly on the wrong one, so only
+# the cron that actually corresponds to 4 AM ET does real work.
 #
 # SETUP (one-time, in GitHub repo Settings → Secrets → Actions):
 #   AIRTABLE_API_KEY      — Airtable Personal Access Token
 #   ANTHROPIC_API_KEY     — Claude API key (console.anthropic.com)
-#   FEEDBACK_ENDPOINT     — Google Apps Script Web App URL (from feedback_handler.gs deploy)
-#   PASSKEY_AUTH_URL      — Cloudflare Worker URL for passkey auth (e.g. https://weekend-brief-auth.<sub>.workers.dev)
-#   GOOGLE_CLIENT_ID      — OAuth 2.0 Client ID (run get_google_token.py once to obtain all 3)
+#   FEEDBACK_ENDPOINT     — Google Apps Script Web App URL
+#   PASSKEY_AUTH_URL      — Cloudflare Worker URL for passkey auth
+#   GOOGLE_CLIENT_ID      — OAuth 2.0 Client ID
 #   GOOGLE_CLIENT_SECRET  — OAuth 2.0 Client Secret
-#   GOOGLE_REFRESH_TOKEN  — Long-lived refresh token
-#
-# FILE PLACEMENT in your GitHub repo:
-#   .github/workflows/generate-weekend-brief.yml   ← this file
-#   generate_brief.py                              ← at repo root
+#   GOOGLE_REFRESH_TOKEN  — Long-lived refresh token (calendar.readonly + gmail.send scopes)
 #
 # Manual trigger: GitHub → Actions tab → "Generate Weekend Brief" → Run workflow
 
@@ -22,8 +22,9 @@ name: Generate Weekend Brief
 
 on:
   schedule:
-    - cron: '0 14 * * 1'   # Every Monday at 14:00 UTC = 10:00 AM ET
-  workflow_dispatch:         # Also triggerable manually from the Actions tab
+    - cron: '0 8 * * 1'    # 08:00 UTC = 4:00 AM EDT (summer; Mar–Nov)
+    - cron: '0 9 * * 1'    # 09:00 UTC = 4:00 AM EST (winter; Nov–Mar)
+  workflow_dispatch:         # Always runs immediately, no DST gate
 
 jobs:
   generate:
@@ -42,6 +43,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - name: Install Python dependencies
         run: pip install requests anthropic google-auth google-auth-oauthlib
@@ -65,3 +67,13 @@ jobs:
           # Only commit if something actually changed
           git diff --staged --quiet || git commit -m "🏡 Weekend Brief — $(date -u '+%B %d, %Y')"
           git push
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          GOOGLE_CLIENT_ID:     ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          WORKFLOW_NAME:        ${{ github.workflow }}
+          RUN_URL:              ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python notify_failure.py

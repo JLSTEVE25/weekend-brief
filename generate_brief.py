@@ -2,7 +2,7 @@
 """
 Weekend Brief Generator
 =======================
-Runs every Monday at 10 AM ET via GitHub Actions.
+Runs every Monday at 4 AM ET via GitHub Actions.
 
 Pulls live data from Airtable (Restaurants, Events, Friends),
 fetches Charlotte weekend weather (Open-Meteo — no API key needed),
@@ -471,7 +471,7 @@ def is_correct_schedule_slot(expected_et_hour):
 
 
 def main():
-    if not is_correct_schedule_slot(10):
+    if not is_correct_schedule_slot(4):
         sys.exit(0)
 
     print("📡 Fetching Airtable data…")

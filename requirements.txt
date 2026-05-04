@@ -1,0 +1,4 @@
+requests
+anthropic
+google-auth
+google-auth-oauthlib

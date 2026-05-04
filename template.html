@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekend Brief — Stevenson Family</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f7; min-height: 100vh; }
+
+  /* AUTH GATE */
+  #auth-gate {
+    min-height: 100vh;
+    background: linear-gradient(160deg, #1b2838 0%, #2d4a6f 50%, #3a7bd5 100%);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 40px 24px; text-align: center;
+  }
+  .auth-logo {
+    width: 64px; height: 64px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 18px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; margin-bottom: 24px;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .auth-title { font-size: 32px; font-weight: 700; color: #fff; letter-spacing: -0.5px; margin-bottom: 10px; }
+  .auth-tagline { font-size: 16px; color: rgba(255,255,255,0.65); max-width: 260px; line-height: 1.5; margin-bottom: 48px; }
+  #passkey-login-btn {
+    background: rgba(255,255,255,0.95); color: #1b2838; border: none;
+    border-radius: 14px; padding: 16px 32px; font-size: 16px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  #passkey-login-btn:active { transform: scale(0.97); }
+  .auth-footer { margin-top: 32px; font-size: 13px; color: rgba(255,255,255,0.35); }
+
+  /* MAIN CONTENT */
+  #main-content { display: none; padding-bottom: 80px; }
+
+  /* HEADER */
+  .header {
+    background: linear-gradient(135deg, #1b2838 0%, #2d4a6f 55%, #3a7bd5 100%);
+    padding: 52px 20px 20px; position: sticky; top: 0; z-index: 100;
+  }
+  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .header-title { font-size: 22px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+  .date-pill {
+    background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.9);
+    font-size: 13px; font-weight: 500; padding: 5px 12px;
+    border-radius: 20px; border: 1px solid rgba(255,255,255,0.2);
+  }
+  .person-toggle { display: flex; background: rgba(255,255,255,0.12); border-radius: 10px; padding: 3px; gap: 2px; }
+  .person-btn {
+    padding: 6px 16px; border-radius: 7px; border: none; background: transparent;
+    color: rgba(255,255,255,0.65); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+  }
+  .person-btn.active { background: rgba(255,255,255,0.95); color: #1b2838; }
+
+  /* WEATHER STRIP */
+  .weather-strip { background: linear-gradient(135deg, #1b2838 0%, #2d4a6f 55%, #3a7bd5 100%); padding: 0 16px 16px; }
+  .weather-inner {
+    background: rgba(255,255,255,0.1); border-radius: 14px;
+    display: flex; padding: 12px 0; border: 1px solid rgba(255,255,255,0.15);
+  }
+  .weather-day { flex: 1; text-align: center; padding: 4px 8px; }
+  .weather-day + .weather-day { border-left: 1px solid rgba(255,255,255,0.15); }
+  .weather-day-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .weather-icon { font-size: 20px; margin-bottom: 4px; }
+  .weather-temps { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 3px; }
+  .weather-low { color: rgba(255,255,255,0.55); }
+  .weather-rain { font-size: 11px; color: rgba(255,255,255,0.6); }
+  .weather-rain.high-rain { color: #7dd3fc; }
+
+  /* TAB BAR */
+  .tab-bar { background: #fff; display: flex; border-bottom: 1px solid #e5e7eb; position: sticky; top: 128px; z-index: 99; }
+  .tab-btn {
+    flex: 1; padding: 14px 8px; border: none; background: transparent;
+    font-size: 14px; font-weight: 600; color: #9ca3af; cursor: pointer;
+    border-bottom: 2px solid transparent; transition: all 0.2s;
+  }
+  .tab-btn.active { color: #1b2838; border-bottom-color: #3a7bd5; }
+
+  /* TAB PANELS */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* SECTION LABELS */
+  .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #9ca3af; padding: 20px 20px 10px; }
+
+  /* TIMELINE CARD */
+  .timeline-card { background: #fff; margin: 0 16px 12px; border-radius: 18px; padding: 18px 18px 10px; box-shadow: 0 1px 8px rgba(0,0,0,0.07); }
+  .timeline-day-header {
+    font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    color: #6b7280; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #f3f4f6;
+  }
+  .timeline-event { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f9fafb; }
+  .timeline-event:last-child { border-bottom: none; padding-bottom: 4px; }
+  .timeline-connector { display: flex; flex-direction: column; align-items: center; padding-top: 2px; min-width: 16px; }
+  .timeline-dot { width: 8px; height: 8px; border-radius: 50%; background: #d1d5db; flex-shrink: 0; }
+  .timeline-event.has-event .timeline-dot { background: #3a7bd5; }
+  .timeline-event.free-window .timeline-dot { background: #e5e7eb; }
+  .timeline-time { font-size: 12px; color: #6b7280; min-width: 80px; font-variant-numeric: tabular-nums; flex-shrink: 0; padding-top: 1px; }
+  .timeline-body { flex: 1; min-width: 0; }
+  .timeline-title { font-size: 14px; font-weight: 500; color: #111827; line-height: 1.3; }
+  .timeline-location { font-size: 12px; color: #9ca3af; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .free-text { font-size: 14px; color: #9ca3af; font-style: italic; }
+  .cal-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px;
+    background: #e5e7eb; color: #6b7280; flex-shrink: 0; margin-top: 2px;
+  }
+  .cal-badge.john { background: #dbeafe; color: #1d4ed8; }
+  .cal-badge.sara { background: #fce7f3; color: #9d174d; }
+  .cal-badge.family { background: #fff3e0; color: #e65100; }
+
+  /* SUGGESTIONS */
+  .suggestion-card { background: #fff; margin: 0 16px 14px; border-radius: 18px; overflow: hidden; box-shadow: 0 1px 8px rgba(0,0,0,0.08); }
+  .suggestion-window-bar {
+    padding: 10px 16px 8px; font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; display: flex; align-items: center; gap: 6px;
+  }
+  .window-friday { background: #1b2838; color: rgba(255,255,255,0.85); }
+  .window-saturday { background: #1a6fb5; color: rgba(255,255,255,0.9); }
+  .window-sunday { background: #8b3a9f; color: rgba(255,255,255,0.9); }
+  .suggestion-body { padding: 14px 16px 12px; }
+  .suggestion-title { font-size: 17px; font-weight: 700; color: #111827; margin-bottom: 8px; line-height: 1.25; }
+  .suggestion-desc { font-size: 14px; color: #374151; line-height: 1.55; margin-bottom: 12px; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .chip { font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+  .chip-neighborhood { background: #f3f4f6; color: #374151; }
+  .chip-price { background: #f3f4f6; color: #374151; }
+  .chip-saturday { background: #e8f4fd; color: #1a6fb5; }
+  .chip-sunday { background: #fef3e2; color: #b5761a; }
+  .chip-friday { background: #e8eaf0; color: #1b2838; }
+  .chip-date-night { background: #f5e6f8; color: #8b3a9f; }
+  .chip-family { background: #fff3e0; color: #e65100; }
+  .chip-event { background: #e8fde8; color: #1a6b2a; }
+  .chip-invite { background: #fdf2ff; color: #7c3aed; font-weight: 600; }
+
+  /* FEEDBACK */
+  .feedback-row { display: flex; border-top: 1px solid #f3f4f6; padding-top: 10px; gap: 4px; }
+  .feedback-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 6px 4px; border: none; background: transparent; border-radius: 10px;
+    cursor: pointer; font-size: 18px; transition: background 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .feedback-btn .fb-label { font-size: 10px; color: #9ca3af; font-weight: 500; }
+  .feedback-btn:active { transform: scale(0.9); }
+  .feedback-btn.selected { background: #f0f9ff; }
+  .feedback-btn.selected.love { background: #fff0f5; }
+  .feedback-btn.selected.nope { background: #fff5f5; }
+  .feedback-btn.selected.interested { background: #f0f9ff; }
+  .feedback-btn.selected.swap { background: #f5fff0; }
+
+  /* COMING UP CARDS */
+  .coming-up-card { background: #fff; margin: 0 16px 12px; border-radius: 18px; overflow: hidden; box-shadow: 0 1px 8px rgba(0,0,0,0.07); }
+  .coming-up-header { padding: 14px 16px 10px; border-bottom: 1px solid #f3f4f6; display: flex; align-items: flex-start; gap: 12px; }
+  .coming-up-date-block { min-width: 44px; text-align: center; background: #f3f4f6; border-radius: 10px; padding: 6px 8px; flex-shrink: 0; }
+  .coming-up-month { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #6b7280; letter-spacing: 0.5px; }
+  .coming-up-day-num { font-size: 20px; font-weight: 700; color: #111827; line-height: 1.1; }
+  .coming-up-info { flex: 1; min-width: 0; }
+  .coming-up-name { font-size: 15px; font-weight: 700; color: #111827; line-height: 1.25; margin-bottom: 3px; }
+  .coming-up-venue { font-size: 13px; color: #6b7280; margin-bottom: 6px; }
+  .coming-up-body { padding: 10px 16px 12px; }
+  .conflict-banner {
+    background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px;
+    padding: 8px 12px; margin-bottom: 10px; font-size: 12px; color: #92400e;
+    display: flex; align-items: flex-start; gap: 6px; line-height: 1.4;
+  }
+  .clear-banner {
+    background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px;
+    padding: 7px 12px; margin-bottom: 10px; font-size: 12px; color: #14532d;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .coming-up-notes { font-size: 13px; color: #4b5563; line-height: 1.5; margin-bottom: 10px; }
+
+  /* STICKY FOOTER */
+  .sticky-footer {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(255,255,255,0.95); backdrop-filter: blur(12px);
+    border-top: 1px solid #e5e7eb; padding: 12px 20px;
+    display: flex; align-items: center; justify-content: center; z-index: 200;
+  }
+  .footer-count { font-size: 13px; color: #6b7280; font-weight: 500; }
+
+  /* TOAST */
+  .toast {
+    position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+    background: #1b2838; color: #fff; padding: 10px 20px;
+    border-radius: 24px; font-size: 14px; font-weight: 600;
+    z-index: 9999; opacity: 0; transition: opacity 0.3s;
+    pointer-events: none; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+
+  /* JOHN/SARA MODE */
+  body.sara-mode .john-pick { display: none; }
+  body.john-mode .sara-pick { display: none; }
+
+  /* CALENDAR EMPTY STATE */
+  .calendar-empty { text-align: center; color: #9ca3af; font-size: 14px; padding: 32px 20px; }
+</style>
+</head>
+<body>
+
+<!-- AUTH GATE -->
+<div id="auth-gate">
+  <div class="auth-logo">📋</div>
+  <div class="auth-title">Weekend Brief</div>
+  <p class="auth-tagline">Your family's weekend, thoughtfully planned. For John &amp; Sara.</p>
+  <button id="passkey-login-btn" onclick="handlePasskeyLogin()">
+    <span>🔑</span> Sign in with Face ID / Touch ID
+  </button>
+  <div class="auth-footer">Stevenson family · Charlotte, NC</div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div id="main-content" style="display:none">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-top">
+      <div class="header-title">Weekend Brief</div>
+      <div class="date-pill">{{WEEKEND_LABEL}}</div>
+    </div>
+    <div class="person-toggle">
+      <button class="person-btn active" id="btn-john" onclick="setPerson('john')">John</button>
+      <button class="person-btn" id="btn-sara" onclick="setPerson('sara')">Sara</button>
+    </div>
+  </div>
+
+  <!-- WEATHER STRIP -->
+  <div class="weather-strip">
+    <div class="weather-inner">
+{{WEATHER_STRIP}}
+    </div>
+  </div>
+
+  <!-- TAB BAR -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="weekend" onclick="switchTab('weekend')">This Weekend</button>
+    <button class="tab-btn" data-tab="comingup" onclick="switchTab('comingup')">Coming Up</button>
+  </div>
+
+  <!-- TAB 1: THIS WEEKEND -->
+  <div class="tab-panel active" id="tab-weekend">
+    <div class="section-label">Your Weekend</div>
+{{TIMELINE_HTML}}
+    <div class="section-label">Suggestions</div>
+{{SUGGESTIONS_HTML}}
+  </div>
+
+  <!-- TAB 2: COMING UP -->
+  <div class="tab-panel" id="tab-comingup">
+    <div class="section-label">On the Radar</div>
+{{COMING_UP_HTML}}
+  </div>
+
+  <!-- STICKY FOOTER -->
+  <div class="sticky-footer">
+    <div class="footer-count"><span id="reaction-count">0</span> reactions this weekend</div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast-msg"></div>
+
+</div><!-- /main-content -->
+
+<!-- UI HANDLERS -->
+<script>
+(function() {
+  var currentPerson = 'john';
+  var totalReactions = 0;
+
+  window.setPerson = function(p) {
+    currentPerson = p;
+    var j = document.getElementById('btn-john');
+    var s = document.getElementById('btn-sara');
+    if (j) j.classList.toggle('active', p === 'john');
+    if (s) s.classList.toggle('active', p === 'sara');
+    document.body.classList.toggle('sara-mode', p === 'sara');
+    document.body.classList.toggle('john-mode', p === 'john');
+  };
+
+  window.switchTab = function(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(function(btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+    });
+    document.querySelectorAll('.tab-panel').forEach(function(tc) {
+      tc.classList.toggle('active', tc.id === 'tab-' + tabId);
+    });
+  };
+
+  window.handleFeedback = function(btn, type, name, vote) {
+    var row = btn.closest('.feedback-row');
+    var wasSelected = btn.classList.contains('selected');
+    row.querySelectorAll('.feedback-btn').forEach(function(b) { b.classList.remove('selected'); });
+    if (!wasSelected) {
+      btn.classList.add('selected');
+      totalReactions++;
+      if (typeof window.sendFeedback === 'function') {
+        window.sendFeedback(type, name, vote, currentPerson);
+      }
+      var emoji = { love: '❤️', nope: '👎', interested: '👀', swap: '🔄' };
+      window.showToast((emoji[vote] || '') + ' Got it!');
+    } else {
+      totalReactions = Math.max(0, totalReactions - 1);
+    }
+    var counter = document.getElementById('reaction-count');
+    if (counter) counter.textContent = totalReactions;
+  };
+
+  window.showToast = function(msg) {
+    var t = document.getElementById('toast-msg');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(function() { t.classList.remove('show'); }, 2000);
+  };
+
+  window.setPerson('john');
+})();
+</script>
+
+<!-- FEEDBACK ENDPOINT -->
+<script>
+(function() {
+  window.FEEDBACK_ENDPOINT = {{FEEDBACK_ENDPOINT_JS}};
+  var lastCard = null;
+  document.addEventListener('click', function(e) {
+    var card = e.target.closest('[data-record-id]');
+    if (card) lastCard = card;
+  }, true);
+  window.sendFeedback = function(type, name, vote, person) {
+    if (!window.FEEDBACK_ENDPOINT) return;
+    var recordId = lastCard ? lastCard.getAttribute('data-record-id') : null;
+    var authedUser = window.AUTHENTICATED_USER || null;
+    fetch(window.FEEDBACK_ENDPOINT, {
+      method: "POST", mode: "no-cors",
+      body: JSON.stringify({ type: type, name: name, vote: vote, person: person, authenticatedUser: authedUser, recordId: recordId })
+    }).then(function() { window.showToast('✓ Sent'); })
+      .catch(function() { window.showToast('⚠ No connection'); });
+  };
+})();
+</script>
+
+<!-- PASSKEY AUTH -->
+<script>
+(function() {
+  var AUTH_API = {{PASSKEY_AUTH_URL_JS}};
+  if (!AUTH_API) { console.warn('PASSKEY_AUTH_URL not set; auth disabled.'); return; }
+
+  function b64urlToBuf(s) {
+    var pad = '='.repeat((4 - (s.length % 4)) % 4);
+    var bin = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/'));
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes.buffer;
+  }
+  function bufToB64url(buf) {
+    var bytes = new Uint8Array(buf), s = '';
+    for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  }
+  function showApp() {
+    var gate = document.getElementById('auth-gate');
+    var main = document.getElementById('main-content');
+    if (gate) gate.style.display = 'none';
+    if (main) main.style.display = 'block';
+  }
+  async function checkSession() {
+    try {
+      var r = await fetch(AUTH_API + '/verify', { credentials: 'include' });
+      var d = await r.json();
+      if (d.authenticated) { window.AUTHENTICATED_USER = d.user || null; showApp(); }
+    } catch (e) {}
+  }
+  window.handlePasskeyLogin = async function() {
+    if (!window.PublicKeyCredential) { alert('This browser does not support passkeys.'); return; }
+    try {
+      var beginResp = await fetch(AUTH_API + '/login/begin', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }, body: '{}'
+      });
+      var options = await beginResp.json();
+      if (!beginResp.ok) throw new Error(options.error || 'Begin failed');
+      options.challenge = b64urlToBuf(options.challenge);
+      if (options.allowCredentials) {
+        options.allowCredentials = options.allowCredentials.map(function(c) {
+          return Object.assign({}, c, { id: b64urlToBuf(c.id) });
+        });
+      }
+      var cred = await navigator.credentials.get({ publicKey: options });
+      var body = {
+        id: cred.id, rawId: bufToB64url(cred.rawId), type: cred.type,
+        response: {
+          clientDataJSON: bufToB64url(cred.response.clientDataJSON),
+          authenticatorData: bufToB64url(cred.response.authenticatorData),
+          signature: bufToB64url(cred.response.signature),
+          userHandle: cred.response.userHandle ? bufToB64url(cred.response.userHandle) : null
+        },
+        clientExtensionResults: cred.getClientExtensionResults ? cred.getClientExtensionResults() : {}
+      };
+      var completeResp = await fetch(AUTH_API + '/login/complete', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      var result = await completeResp.json();
+      if (result.authenticated) { window.AUTHENTICATED_USER = result.user || null; showApp(); }
+      else { alert('Authentication failed. Try again.'); }
+    } catch (e) {
+      console.error('Passkey login error:', e);
+      alert('Passkey login failed. Make sure a passkey is registered for this site.');
+    }
+  };
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', checkSession); }
+  else { checkSession(); }
+})();
+</script>
+</body>
+</html>

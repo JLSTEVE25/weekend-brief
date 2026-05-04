@@ -470,6 +470,196 @@ def is_correct_schedule_slot(expected_et_hour):
     return False
 
 
+# ── Render helpers (template-based output) ──────────────────────────────────
+
+def get_weather_icon(code):
+    icons = {0: "☀️", 1: "🌤", 2: "⛅", 3: "☁️", 45: "🌫", 48: "🌫",
+             51: "🌦", 53: "🌦", 55: "🌧", 61: "🌧", 63: "🌧", 65: "🌧",
+             71: "🌨", 73: "🌨", 75: "❄️", 80: "🌦", 81: "🌧", 82: "⛈",
+             95: "⛈", 96: "⛈", 99: "⛈"}
+    return icons.get(code, "🌤")
+
+
+def render_weather_html(weather):
+    if not weather:
+        return '<div class="weather-day"><span class="weather-day-label">No data</span></div>'
+    html_parts = []
+    for day in weather:
+        rain_class = ' high-rain' if day.get("rain_chance", 0) >= 50 else ''
+        html_parts.append(f'''      <div class="weather-day">
+        <div class="weather-day-label">{day["label"]}</div>
+        <div class="weather-icon">{get_weather_icon(day.get("code", 1))}</div>
+        <div class="weather-temps">{day["high"]}° <span class="weather-low">{day["low"]}°</span></div>
+        <div class="weather-rain{rain_class}">💧 {day["rain_chance"]}%</div>
+      </div>''')
+    return "\n".join(html_parts)
+
+
+def render_timeline_html(calendar_events, open_windows):
+    if not calendar_events:
+        return '    <div class="calendar-empty">Calendar sync coming soon</div>'
+    days = {}
+    for ev in calendar_events:
+        day_label = ev.get("day", "")
+        if day_label not in days:
+            days[day_label] = []
+        days[day_label].append(ev)
+    for w in open_windows:
+        day_label = w.get("day", "")
+        if day_label not in days:
+            days[day_label] = []
+        days[day_label].append({"_is_free": True, "label": w.get("label", "Free time ✨"),
+                                "time": w.get("start", ""), "day": day_label})
+    day_order = ["FRIDAY", "SATURDAY", "SUNDAY"]
+    html_parts = ['    <div class="timeline-card">']
+    for day_name in day_order:
+        events = days.get(day_name, [])
+        if not events:
+            continue
+        events.sort(key=lambda e: e.get("time", "99:99"))
+        html_parts.append(f'      <div class="timeline-day-header">{day_name}</div>')
+        for ev in events:
+            if ev.get("_is_free"):
+                html_parts.append(f'''      <div class="timeline-event free-window">
+        <div class="timeline-connector"><div class="timeline-dot"></div></div>
+        <div class="timeline-time">{ev.get("time", "")}</div>
+        <div class="timeline-body"><span class="free-text">{ev["label"]}</span></div>
+      </div>''')
+            else:
+                cal = ev.get("calendar", "family")
+                badge_class = "john" if "john" in cal.lower() else "sara" if "sara" in cal.lower() else "family"
+                badge_letter = "J" if badge_class == "john" else "S" if badge_class == "sara" else "F"
+                time_str = ev.get("time", "All day") if not ev.get("all_day") else "All day"
+                location_html = f'<div class="timeline-location">{ev["location"]}</div>' if ev.get("location") else ''
+                html_parts.append(f'''      <div class="timeline-event has-event">
+        <div class="timeline-connector"><div class="timeline-dot"></div></div>
+        <div class="timeline-time">{time_str}</div>
+        <div class="timeline-body">
+          <div class="timeline-title">{ev.get("summary", "Event")}</div>
+          {location_html}
+        </div>
+        <div class="cal-badge {badge_class}">{badge_letter}</div>
+      </div>''')
+    html_parts.append('    </div>')
+    return "\n".join(html_parts)
+
+
+def render_suggestion_card(s):
+    day = s.get("window_day", "friday").lower()
+    window_class = f"window-{day}" if day in ("friday", "saturday", "sunday") else "window-friday"
+    chips_html = ""
+    for chip in s.get("chips", []):
+        chip_type = chip.get("type", "neighborhood")
+        chips_html += f'<span class="chip chip-{chip_type}">{chip.get("label", "")}</span>'
+    if s.get("invite"):
+        chips_html += f'<span class="chip chip-invite">👋 {s["invite"]}</span>'
+    data_type = s.get("data_type", "restaurant")
+    data_name = s.get("data_name", "")
+    safe_name = data_name.replace("'", "&#39;")
+    record_id = s.get("data_record_id", "")
+    feedback_html = (
+        '    <div class="feedback-row">\n'
+        f'      <button class="feedback-btn" onclick="handleFeedback(this,\'{data_type}\',\'{safe_name}\',\'love\')"><span>❤️</span><span class="fb-label">Love</span></button>\n'
+        f'      <button class="feedback-btn" onclick="handleFeedback(this,\'{data_type}\',\'{safe_name}\',\'nope\')"><span>👎</span><span class="fb-label">Nope</span></button>\n'
+        f'      <button class="feedback-btn" onclick="handleFeedback(this,\'{data_type}\',\'{safe_name}\',\'interested\')"><span>👀</span><span class="fb-label">Interested</span></button>\n'
+        f'      <button class="feedback-btn" onclick="handleFeedback(this,\'{data_type}\',\'{safe_name}\',\'swap\')"><span>🔄</span><span class="fb-label">Swap</span></button>\n'
+        '    </div>'
+    )
+    return (
+        f'    <div class="suggestion-card" data-record-id="{record_id}" data-name="{data_name}" data-type="{data_type}">\n'
+        f'      <div class="suggestion-window-bar {window_class}">{s.get("emoji","🌙")} {s.get("window_label","EVENING")}</div>\n'
+        f'      <div class="suggestion-body">\n'
+        f'        <div class="suggestion-title">{s.get("title","")}</div>\n'
+        f'        <div class="suggestion-desc">{s.get("description","")}</div>\n'
+        f'        <div class="chip-row">{chips_html}</div>\n'
+        f'{feedback_html}\n'
+        f'      </div>\n'
+        f'    </div>'
+    )
+
+
+def render_coming_up_card(event, notes_text):
+    from datetime import datetime as dt
+    date_str = event.get("Date", "")
+    try:
+        d = dt.strptime(date_str, "%Y-%m-%d")
+        month_str = d.strftime("%b").upper()
+        day_num = d.day
+    except (ValueError, TypeError):
+        month_str = "TBD"
+        day_num = "?"
+    name = event.get("Name", "Event")
+    venue = event.get("Venue", "")
+    record_id = event.get("_record_id", "")
+    conflicts = event.get("calendar_conflicts", [])
+    if conflicts:
+        first = conflicts[0]
+        conflict_text = f'⚠️ You have {first.get("summary","")} ({first.get("calendar","")}) that day'
+        if len(conflicts) > 1:
+            conflict_text += f' +{len(conflicts)-1} more'
+        conflict_html = f'<div class="conflict-banner">{conflict_text}</div>'
+    else:
+        conflict_html = '<div class="clear-banner">✅ Calendar looks clear</div>'
+    notes_html = f'<div class="coming-up-notes">{notes_text}</div>' if notes_text else ''
+    chips_html = ''
+    if event.get("Price"):
+        chips_html += f'<span class="chip chip-price">{event["Price"]}</span>'
+    if event.get("Neighborhood"):
+        chips_html += f'<span class="chip chip-neighborhood">{event["Neighborhood"]}</span>'
+    chip_row = f'<div class="chip-row">{chips_html}</div>' if chips_html else ''
+    safe_name = name.replace("'", "&#39;")
+    feedback_html = (
+        '    <div class="feedback-row">\n'
+        f'      <button class="feedback-btn" onclick="handleFeedback(this,\'event\',\'{safe_name}\',\'love\')"><span>❤️</span><span class="fb-label">Love</span></button>\n'
+        f'      <button class="feedback-btn" onclick="handleFeedback(this,\'event\',\'{safe_name}\',\'nope\')"><span>👎</span><span class="fb-label">Nope</span></button>\n'
+        f'      <button class="feedback-btn" onclick="handleFeedback(this,\'event\',\'{safe_name}\',\'interested\')"><span>👀</span><span class="fb-label">Interested</span></button>\n'
+        f'      <button class="feedback-btn" onclick="handleFeedback(this,\'event\',\'{safe_name}\',\'swap\')"><span>🔄</span><span class="fb-label">Swap</span></button>\n'
+        '    </div>'
+    )
+    return (
+        f'    <div class="coming-up-card" data-record-id="{record_id}" data-name="{name}" data-type="event">\n'
+        f'      <div class="coming-up-header">\n'
+        f'        <div class="coming-up-date-block">\n'
+        f'          <div class="coming-up-month">{month_str}</div>\n'
+        f'          <div class="coming-up-day-num">{day_num}</div>\n'
+        f'        </div>\n'
+        f'        <div class="coming-up-info">\n'
+        f'          <div class="coming-up-name">{name}</div>\n'
+        f'          <div class="coming-up-venue">{venue}</div>\n'
+        f'        </div>\n'
+        f'      </div>\n'
+        f'      <div class="coming-up-body">\n'
+        f'        {conflict_html}\n'
+        f'        {notes_html}\n'
+        f'        {chip_row}\n'
+        f'{feedback_html}\n'
+        f'      </div>\n'
+        f'    </div>'
+    )
+
+
+def render_html(weekend_label, weather, calendar_events, open_windows,
+                suggestions, coming_up_notes, radar_events):
+    template_path = os.path.join(os.path.dirname(__file__), "template.html")
+    with open(template_path, "r", encoding="utf-8") as f:
+        html = f.read()
+    weather_html = render_weather_html(weather)
+    timeline_html = render_timeline_html(calendar_events, open_windows)
+    suggestions_html = "\n".join(render_suggestion_card(s) for s in suggestions)
+    coming_up_html = "\n".join(
+        render_coming_up_card(ev, coming_up_notes.get(ev.get("Name", ""), ""))
+        for ev in radar_events
+    )
+    html = html.replace("{{WEEKEND_LABEL}}", weekend_label)
+    html = html.replace("{{WEATHER_STRIP}}", weather_html)
+    html = html.replace("{{TIMELINE_HTML}}", timeline_html)
+    html = html.replace("{{SUGGESTIONS_HTML}}", suggestions_html)
+    html = html.replace("{{COMING_UP_HTML}}", coming_up_html)
+    html = html.replace("{{FEEDBACK_ENDPOINT_JS}}", json.dumps(FEEDBACK_ENDPOINT))
+    html = html.replace("{{PASSKEY_AUTH_URL_JS}}", json.dumps(PASSKEY_AUTH_URL))
+    return html
+
+
 def main():
     if not is_correct_schedule_slot(4):
         sys.exit(0)
@@ -548,9 +738,9 @@ def main():
                 d += datetime.timedelta(days=1)
         e["calendar_conflicts"] = conflicts
 
-    # ── Build Claude prompt ──
-    system_prompt = """You are generating a Weekend Brief HTML page for the Stevenson family in Charlotte, NC.
-Return ONLY the complete, self-contained HTML. No markdown, no code fences, no explanation."""
+    # ── Build Claude prompt (JSON output) ──
+    system_prompt = """You generate structured content for the Stevenson family Weekend Brief in Charlotte, NC.
+Return ONLY valid JSON. No markdown, no code fences, no explanation."""
 
     friends_summary = [
         {
@@ -567,127 +757,43 @@ Return ONLY the complete, self-contained HTML. No markdown, no code fences, no e
         print(f"   ⚠️  Trimming radar events: {len(radar_events)} → {RADAR_EVENT_CAP} (raise WB_RADAR_CAP to keep more)")
     radar_events_for_prompt = radar_events[:RADAR_EVENT_CAP]
 
-    # NOTE: We do NOT ask Claude to write the feedback JS. It kept dropping
-    # `mode: "no-cors"`, which breaks the cross-origin POST to Apps Script.
-    # Instead we inject a guaranteed-correct shim after Claude returns HTML.
-    # Claude just needs to call sendFeedback(type, name, vote, currentPerson).
+    static_instructions = """## YOUR TASK
 
-    # Static design requirements — identical every run, sent as a cached prompt block.
-    static_instructions = """## DESIGN REQUIREMENTS
+Given weather, calendar events, open windows, restaurants, events, and friends data,
+return a JSON object with two keys:
 
-Produce a complete, self-contained, mobile-first HTML file. Key requirements:
+### 1. "suggestions" — array of 4-5 suggestion objects
 
-1.  **Auth gate** — Wrap the ENTIRE brief in `<div id="main-content" style="display:none">…</div>`.
-    Before it, render a centered login screen with id="auth-gate" on a navy-to-blue gradient background
-    (#1b2838 → #2d4a6f → #3a7bd5), containing the title "Weekend Brief", a short tagline, and ONE button
-    with id="passkey-login-btn" that reads "Sign in with Face ID / Touch ID". The button's onclick should
-    call `handlePasskeyLogin()`. Do NOT write any auth JavaScript yourself — it will be injected after you
-    finish. Do NOT include a password field anywhere.
+Each suggestion fills one open window (free time slot). Rules:
+- Friday evening free → date night unless Saturday AM is packed
+- Saturday afternoon free after busy morning → low-key family activity or easy dinner
+- Sunday all day free → adventure, group hangout, or brunch
+- Rainy forecast → indoor options; nice weather → outdoor / patio
+- Mix family and date-night picks
 
-2.  **Section 1 — Header**
-    Navy-to-blue gradient (#1b2838 → #2d4a6f → #3a7bd5). Shows "Weekend Brief",
-    date pill (e.g. "Apr 19 – 20"), and John/Sara person toggle.
+Each suggestion object has these fields:
+- "window_label": e.g. "FRIDAY EVENING", "SATURDAY AFTERNOON", "SUNDAY MORNING"
+- "window_day": "friday" | "saturday" | "sunday"
+- "emoji": one emoji for the window
+- "title": bold suggestion name (restaurant or activity)
+- "description": 2-3 sentences explaining why it fits (weather, vibe, what came before)
+- "chips": array of {type, label} where type is one of: "neighborhood", "price", "saturday", "sunday", "friday", "date-night", "family", "event"
+- "invite": friend/family name to invite (or null)
+- "data_type": "restaurant" or "event"
+- "data_name": the Name field from the source record
+- "data_record_id": the _record_id from the source record
 
-3.  **Section 2 — Weather Strip**
-    3-day forecast bar directly below the header: Fri / Sat / Sun.
-    Each day: icon, high/low, rain %. Always visible, not in a tab.
+### 2. "coming_up_notes" — object keyed by event Name
 
-4.  **Tab bar — 2 tabs:** "This Weekend" | "Coming Up"
-    Sits directly below the weather strip.
+For each event in the COMING UP list, provide a 1-2 sentence note about why it might
+be interesting for the family. Key = exact event Name, value = the note string.
 
-5.  **Tab 1 — "This Weekend"** contains two sub-sections stacked vertically:
-
-    **5a. "Your Weekend" Timeline** (top of tab, always shown first)
-    A clean day-by-day list of calendar events merged from all 3 calendars.
-    Format example:
-
-        FRIDAY
-          ├─ 5:00 PM – 10:00 PM  → Nothing planned ✨
-
-        SATURDAY
-          ├─ 8:15 AM   Will soccer                     [S]
-          ├─ 11:00 AM  Cam soccer + Cam t-ball          [F]
-          ├─ 3:00 PM – 10:00 PM  → Nothing planned ✨
-
-        SUNDAY
-          └─ All day free ✨
-
-    Design rules:
-    - Compact, no cards — just a clean list with comfortable tap targets
-    - Each calendar event: time + title + location if available
-    - Tag each event with a subtle badge: [J] John, [S] Sara, [F] Family
-    - "Nothing planned" / "All day free" lines: lighter color with ✨ —
-      these correspond to open windows and are the visual hooks for suggestions below
-    - If CALENDAR EVENTS is empty, show "Calendar sync coming soon" in soft gray
-
-    **5b. "Suggestions"** (directly below the timeline, same tab)
-
-6.  **Suggestions section** (inside "This Weekend" tab, below timeline)**
-    One suggestion card per open window (max 4–5 total), generated by Claude
-    based on: the open window context, weather that day, restaurants list,
-    events list, friends list, and John vs. Sara mode.
-
-    Card format:
-    - Emoji + "FRIDAY EVENING" / "SATURDAY AFTERNOON" etc. as the window label
-    - Bold suggestion title (restaurant name or activity)
-    - 2–3 sentence body: why this fits (weather, what came before, vibe)
-    - Detail chips: neighborhood, price range, kids-friendly or date night indicator
-    - "Who to invite" chip on family/group suggestions (name from Friends list)
-    - Feedback row: ❤️ Love / 👎 Nope / 👀 Interested / 🔄 Swap
-
-    Suggestion rules:
-    - Friday evening free → date night unless Sat AM is packed (then suggest rest)
-    - Sat afternoon free after busy morning → low-key family activity or easy dinner
-    - Sunday all day free → adventure or group hangout, brunch pick
-    - Rainy forecast → indoor options; beautiful day → outdoor / patio
-    - John mode = family/kids emphasis; Sara mode = date-night emphasis
-    - Each card MUST have: data-record-id="<_record_id from source JSON>",
-      data-name="<Name>", data-type="restaurant" or "event"
-
-7.  **Tab 2 — "Coming Up"**
-    All events from 15–75 days out, sorted by date. Compact radar-cards.
-    Each: date, event name, venue, price range, "Who to invite" chip where relevant.
-    Each card MUST have: data-record-id="<_record_id>", data-name="<Name>", data-type="event".
-    Feedback row on each card.
-
-    **Calendar conflict awareness (IMPORTANT):**
-    - If an event has a non-empty `calendar_conflicts` array, show a subtle conflict indicator on the card.
-    - Use a small banner or badge: "⚠️ You have [summary] ([calendar]) that day" in a warm amber/yellow tone.
-    - If multiple conflicts, show the first one and "+N more" if needed.
-    - If `calendar_conflicts` is empty, show a subtle green "✅ Calendar looks clear" indicator.
-    - This helps the family decide whether to pursue an event or skip it because they're already booked.
-
-8.  **Feedback behavior (CRITICAL)**
-    - Four buttons per card: Love it ❤️ / Nope 👎 / Interested 👀 / Swap 🔄
-    - Every button tap: (1) toggle visual selected state, (2) call sendFeedback(type, name, vote, currentPerson).
-    - vote strings: "love", "nope", "interested", "swap" — all lowercase.
-    - type and name come from the card's data-type and data-name attributes.
-    - DO NOT define sendFeedback yourself — it will be injected after you finish. Just call it.
-
-9.  **Feedback footer** — sticky bottom bar showing reaction count only.
-
-10. **CSS palette:**
-    - Header gradient: #1b2838 → #2d4a6f → #3a7bd5
-    - Background: #f5f5f7
-    - Cards: white, border-radius 18px, subtle shadow
-    - Timeline section: white card, clean list, "nothing planned" lines in #9ca3af
-    - Suggestion window labels: Friday evening=#1b2838, Saturday=#1a6fb5, Sunday=#8b3a9f
-    - Tags: Saturday=#e8f4fd/#1a6fb5, Sunday=#fef3e2/#b5761a,
-            Date Night=#f5e6f8/#8b3a9f, Family=#fff3e0/#e65100,
-            Event=#e8fde8/#1a6b2a
-    - Calendar badges [J] [S] [F]: small pill, #e5e7eb background, #6b7280 text
-
-11. **JS** — Do NOT write ANY JavaScript. All UI handlers
-    (setPerson, switchTab, handleFeedback, showToast) plus the
-    feedback shim and passkey auth are injected by Python after
-    your HTML is generated. Do not include any `<script>` tags.
-
-Write vivid, specific Charlotte copy. Two young boys (Will and Cam). Mix of family days and date nights.
-Tone: knowledgeable friend, not a concierge.
+## TONE
+Knowledgeable friend, not a concierge. Vivid, specific Charlotte copy.
+Two young boys (Will and Cam). Mix of family days and date nights.
 """
 
-    # Dynamic data — changes every run, sent uncached.
-    dynamic_data = f"""Generate the Weekend Brief HTML for the weekend of {weekend_label}.
+    dynamic_data = f"""Generate content for the weekend of {weekend_label}.
 
 ## WEATHER DATA (Charlotte, NC)
 {json.dumps(weather, indent=2)}
@@ -698,22 +804,22 @@ Tone: knowledgeable friend, not a concierge.
 ## OPEN WINDOWS (free time slots this weekend)
 {json.dumps(open_windows, indent=2)}
 
-## COMING UP — EVENTS (15–75 days out, for the "Coming Up" tab)
+## COMING UP — EVENTS (15–75 days out)
 {json.dumps(radar_events_for_prompt, indent=2)}
 
-## RESTAURANTS (full list — use for Suggestions)
+## RESTAURANTS (full list — pick from these for suggestions)
 {json.dumps(restaurants, indent=2)}
 
 ## FRIENDS / FAMILIES (for "who to invite" callouts)
 {json.dumps(friends_summary, indent=2)}
 """
 
-    print(f"🤖 Calling Claude API to generate HTML (model: {CLAUDE_MODEL})…")
+    print(f"🤖 Calling Claude API for content JSON (model: {CLAUDE_MODEL})…")
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
     message = client.messages.create(
         model=CLAUDE_MODEL,
-        max_tokens=16000,
+        max_tokens=8000,
         system=system_prompt,
         messages=[{
             "role": "user",
@@ -724,252 +830,23 @@ Tone: knowledgeable friend, not a concierge.
         }],
     )
 
-    html = message.content[0].text.strip()
+    raw = message.content[0].text.strip()
+    for fence in ("```json", "```"):
+        if raw.startswith(fence):
+            raw = raw[len(fence):]
+    if raw.endswith("```"):
+        raw = raw[:-3]
+    raw = raw.strip()
 
-    # Strip accidental code fences
-    for fence in ("```html", "```"):
-        if html.startswith(fence):
-            html = html[len(fence):]
-    if html.endswith("```"):
-        html = html[:-3]
-    html = html.strip()
+    content = json.loads(raw)
+    suggestions = content.get("suggestions", [])
+    coming_up_notes = content.get("coming_up_notes", {})
 
-    # ── Inject UI shim (tabs, person toggle, feedback handler, toast) ──
-    # Defined here (not in the LLM prompt) so it can never be truncated by
-    # token limits. Robust to past variations in the LLM-generated HTML
-    # (e.g. handleFeedback may be called with 2 or 4 args; toast id may
-    # be 'toast' or 'toast-msg').
-    ui_shim = """
-<script>
-/* Injected by generate_brief.py — UI handlers. */
-(function() {
-  var currentPerson = 'john';
-  var totalReactions = 0;
+    print(f"   Got {len(suggestions)} suggestions, {len(coming_up_notes)} coming-up notes")
 
-  window.setPerson = function(p) {
-    currentPerson = p;
-    var j = document.getElementById('btn-john');
-    var s = document.getElementById('btn-sara');
-    if (j) j.classList.toggle('active', p === 'john');
-    if (s) s.classList.toggle('active', p === 'sara');
-    if (p === 'sara') document.body.classList.add('sara-mode');
-    else document.body.classList.remove('sara-mode');
-  };
-
-  window.switchTab = function(tabId) {
-    document.querySelectorAll('.tab-btn').forEach(function(btn) {
-      var oc = btn.getAttribute('onclick') || '';
-      var dt = btn.getAttribute('data-tab');
-      var match = (dt === tabId)
-        || (oc.indexOf("'" + tabId + "'") !== -1)
-        || (oc.indexOf('"' + tabId + '"') !== -1);
-      btn.classList.toggle('active', match);
-    });
-    /* Handle .tab-content (old) and .tab-panel (new Claude variants) */
-    document.querySelectorAll('.tab-content, .tab-panel').forEach(function(tc) {
-      tc.classList.toggle('active', tc.id === 'tab-' + tabId);
-    });
-  };
-
-  window.handleFeedback = function() {
-    var btn = arguments[0], type, name, vote;
-    if (arguments.length >= 4) {
-      type = arguments[1]; name = arguments[2]; vote = arguments[3];
-    } else {
-      vote = arguments[1];
-      var card = btn.closest('[data-record-id], .suggestion-card, .coming-card, .card, .event-card');
-      type = (card && card.dataset.type) ? card.dataset.type : 'unknown';
-      name = (card && card.dataset.name) ? card.dataset.name : 'unknown';
-    }
-    var row = btn.parentElement;
-    /* Detect style: new Claude HTML uses feedback-btn + vote as separate class;
-       old style uses fb-btn + selected-{vote} combined class. */
-    var isNewStyle = btn.classList.contains('feedback-btn');
-    var wasSelected = isNewStyle
-      ? btn.classList.contains('selected')
-      : btn.classList.contains('selected-' + vote);
-    row.querySelectorAll('.fb-btn, .feedback-btn').forEach(function(b) {
-      b.classList.remove('selected', 'selected-love', 'selected-nope', 'selected-interested', 'selected-swap');
-      if (!isNewStyle) { b.className = 'fb-btn'; }
-    });
-    if (!wasSelected) {
-      if (isNewStyle) {
-        btn.classList.add('selected');
-      } else {
-        btn.classList.add('selected-' + vote);
-      }
-      totalReactions++;
-      if (typeof window.sendFeedback === 'function') {
-        window.sendFeedback(type, name, vote, currentPerson);
-      }
-      var emoji = { love: '❤️', nope: '👎', interested: '👀', swap: '🔄' };
-      window.showToast((emoji[vote] || '') + ' Got it!');
-    } else {
-      totalReactions = Math.max(0, totalReactions - 1);
-    }
-    var counter = document.getElementById('reaction-count');
-    if (counter) counter.textContent = totalReactions;
-  };
-
-  window.showToast = function(msg) {
-    var t = document.getElementById('toast-msg') || document.getElementById('toast');
-    if (!t) {
-      /* Claude didn't include a toast element — create one on the fly. */
-      t = document.createElement('div');
-      t.id = 'toast-msg';
-      t.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);' +
-        'background:#1b2838;color:#fff;padding:10px 20px;border-radius:24px;font-size:14px;' +
-        'font-weight:600;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap;';
-      document.body.appendChild(t);
-    }
-    t.textContent = msg;
-    t.classList.add('show');
-    t.style.opacity = '1';
-    setTimeout(function() { t.classList.remove('show'); t.style.opacity = '0'; }, 2000);
-  };
-})();
-</script>
-"""
-
-    # ── Inject feedback shim (guaranteed-correct sendFeedback) ──
-    feedback_shim = f"""
-<script>
-/* Injected by generate_brief.py — do not rely on Claude to write this. */
-(function() {{
-  window.FEEDBACK_ENDPOINT = {json.dumps(FEEDBACK_ENDPOINT)};
-
-  var lastCard = null;
-  document.addEventListener('click', function(e) {{
-    var card = e.target.closest('[data-record-id]');
-    if (card) lastCard = card;
-  }}, true);  /* capture phase — runs before onclick handlers */
-
-  window.sendFeedback = function(type, name, vote, person) {{
-    if (!window.FEEDBACK_ENDPOINT) return;
-    var recordId = lastCard ? lastCard.getAttribute('data-record-id') : null;
-    var authedUser = window.AUTHENTICATED_USER || null;
-    fetch(window.FEEDBACK_ENDPOINT, {{
-      method: "POST",
-      mode: "no-cors",
-      body: JSON.stringify({{
-        type: type,
-        name: name,
-        vote: vote,
-        person: person,
-        authenticatedUser: authedUser,
-        recordId: recordId
-      }})
-    }}).then(function() {{ if (typeof showToast === 'function') showToast('✓ Sent'); }})
-      .catch(function() {{ if (typeof showToast === 'function') showToast('⚠ No connection'); }});
-  }};
-  window.postFeedback = window.sendFeedback; /* alias */
-}})();
-</script>
-"""
-    # ── Inject passkey auth shim ──
-    auth_shim = f"""
-<script>
-/* Injected by generate_brief.py — WebAuthn passkey auth. */
-(function() {{
-  var AUTH_API = {json.dumps(PASSKEY_AUTH_URL)};
-  if (!AUTH_API) {{ console.warn('PASSKEY_AUTH_URL not set; auth disabled.'); return; }}
-
-  function b64urlToBuf(s) {{
-    var pad = '='.repeat((4 - (s.length % 4)) % 4);
-    var bin = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/'));
-    var bytes = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return bytes.buffer;
-  }}
-  function bufToB64url(buf) {{
-    var bytes = new Uint8Array(buf), s = '';
-    for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
-    return btoa(s).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');
-  }}
-
-  function showApp() {{
-    var gate = document.getElementById('auth-gate');
-    var main = document.getElementById('main-content');
-    if (gate) gate.style.display = 'none';
-    if (main) main.style.display = 'block';
-  }}
-
-  async function checkSession() {{
-    try {{
-      var r = await fetch(AUTH_API + '/verify', {{ credentials: 'include' }});
-      var d = await r.json();
-      if (d.authenticated) {{
-        window.AUTHENTICATED_USER = d.user || null;
-        showApp();
-      }}
-    }} catch (e) {{ /* stay on login */ }}
-  }}
-
-  window.handlePasskeyLogin = async function() {{
-    if (!window.PublicKeyCredential) {{
-      alert('This browser does not support passkeys. Use Safari, Chrome, or Edge on a modern device.');
-      return;
-    }}
-    try {{
-      var beginResp = await fetch(AUTH_API + '/login/begin', {{
-        method: 'POST', credentials: 'include',
-        headers: {{ 'Content-Type': 'application/json' }},
-        body: '{{}}'
-      }});
-      var options = await beginResp.json();
-      if (!beginResp.ok) throw new Error(options.error || 'Begin failed');
-
-      options.challenge = b64urlToBuf(options.challenge);
-      if (options.allowCredentials) {{
-        options.allowCredentials = options.allowCredentials.map(function(c) {{
-          return Object.assign({{}}, c, {{ id: b64urlToBuf(c.id) }});
-        }});
-      }}
-
-      var cred = await navigator.credentials.get({{ publicKey: options }});
-      var body = {{
-        id: cred.id,
-        rawId: bufToB64url(cred.rawId),
-        type: cred.type,
-        response: {{
-          clientDataJSON:    bufToB64url(cred.response.clientDataJSON),
-          authenticatorData: bufToB64url(cred.response.authenticatorData),
-          signature:         bufToB64url(cred.response.signature),
-          userHandle: cred.response.userHandle ? bufToB64url(cred.response.userHandle) : null
-        }},
-        clientExtensionResults: cred.getClientExtensionResults ? cred.getClientExtensionResults() : {{}}
-      }};
-      var completeResp = await fetch(AUTH_API + '/login/complete', {{
-        method: 'POST', credentials: 'include',
-        headers: {{ 'Content-Type': 'application/json' }},
-        body: JSON.stringify(body)
-      }});
-      var result = await completeResp.json();
-      if (result.authenticated) {{
-        window.AUTHENTICATED_USER = result.user || null;
-        showApp();
-      }} else {{
-        alert('Authentication failed. Try again.');
-      }}
-    }} catch (e) {{
-      console.error('Passkey login error:', e);
-      alert('Passkey login failed. Make sure a passkey is registered for this site.');
-    }}
-  }};
-
-  if (document.readyState === 'loading') {{
-    document.addEventListener('DOMContentLoaded', checkSession);
-  }} else {{
-    checkSession();
-  }}
-}})();
-</script>
-"""
-
-    if "</body>" in html:
-        html = html.replace("</body>", ui_shim + feedback_shim + auth_shim + "</body>")
-    else:
-        html += ui_shim + feedback_shim + auth_shim
+    # ── Render HTML from template ──
+    html = render_html(weekend_label, weather, calendar_events, open_windows,
+                       suggestions, coming_up_notes, radar_events_for_prompt)
 
     # ── Save ──
     with open("index.html", "w", encoding="utf-8") as f:

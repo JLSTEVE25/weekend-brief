@@ -3,6 +3,8 @@
 # Runs every Thursday at 7 PM ET and emails John + Sara a summary of
 # that week's Weekend Brief feedback, plus 2-3 fresh ideas for next weekend.
 #
+# DST handling: two crons; the Python script gates on current ET hour.
+#
 # REQUIRED SECRETS (same as generate-weekend-brief.yml):
 #   AIRTABLE_API_KEY      — Airtable Personal Access Token
 #   ANTHROPIC_API_KEY     — Claude API key
@@ -15,8 +17,9 @@ name: Thursday Recap Email
 
 on:
   schedule:
-    - cron: '0 23 * * 4'   # Thursday 23:00 UTC = 7:00 PM ET
-  workflow_dispatch:         # Also triggerable manually
+    - cron: '0 23 * * 4'   # Thu 23:00 UTC = 7:00 PM EDT (summer)
+    - cron: '0 0  * * 5'   # Fri 00:00 UTC = 7:00 PM EST (winter; Thu evening ET)
+  workflow_dispatch:         # Always runs immediately, no DST gate
 
 jobs:
   recap:
@@ -32,6 +35,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - name: Install Python dependencies
         run: pip install requests anthropic google-auth google-auth-oauthlib
@@ -44,3 +48,13 @@ jobs:
           GOOGLE_CLIENT_SECRET:  ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN:  ${{ secrets.GOOGLE_REFRESH_TOKEN }}
         run: python thursday_recap.py
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          GOOGLE_CLIENT_ID:     ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          WORKFLOW_NAME:        ${{ github.workflow }}
+          RUN_URL:              ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python notify_failure.py

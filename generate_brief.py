@@ -612,9 +612,11 @@ def render_coming_up_card(event, notes_text):
     if d:
         month_str = d.strftime("%b").upper()
         day_num = d.day
+        dow_str = d.strftime("%a")
     else:
         month_str = "TBD"
         day_num = "?"
+        dow_str = ""
     name = event.get("Name", "Event")
     venue = event.get("Venue", "")
     record_id = event.get("_record_id", "")
@@ -649,6 +651,7 @@ def render_coming_up_card(event, notes_text):
         f'        <div class="coming-up-date-block">\n'
         f'          <div class="coming-up-month">{month_str}</div>\n'
         f'          <div class="coming-up-day-num">{day_num}</div>\n'
+        f'          <div class="coming-up-dow">{dow_str}</div>\n'
         f'        </div>\n'
         f'        <div class="coming-up-info">\n'
         f'          <div class="coming-up-name">{name}</div>\n'

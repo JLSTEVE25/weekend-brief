@@ -23,8 +23,10 @@ Optional: verify AIRTABLE_TABLE_* names match your actual Airtable base.
 import os
 import sys
 import json
+import time
 import datetime
 from zoneinfo import ZoneInfo
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 import anthropic
 
@@ -40,6 +42,9 @@ AIRTABLE_API_KEY  = os.environ["AIRTABLE_API_KEY"]
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 
 CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
+
+# Apify API — optional; if not set, reservation availability is skipped.
+APIFY_API_TOKEN = os.environ.get("APIFY_API_TOKEN", "")
 
 # Google Apps Script feedback endpoint — set once deployed (GitHub Secret: FEEDBACK_ENDPOINT).
 FEEDBACK_ENDPOINT = os.environ.get("FEEDBACK_ENDPOINT", "")
@@ -452,6 +457,137 @@ def parse_event_date_range(date_str):
     return (None, None)
 
 
+# ── Reservation Availability (Apify) ─────────────────────────────────────────
+
+def query_apify(platform, url, date, token, party_size=4):
+    """Call an Apify Actor to get reservation slots for one restaurant on one date.
+    Returns a list of time strings like ['7:00 PM', '7:30 PM']."""
+    if platform == 'Resy':
+        actor_id = 'clearpath~resy-api'
+        input_data = {
+            'urls': [url],
+            'date': date.strftime('%Y-%m-%d'),
+            'partySize': party_size,
+            'includeAvailability': True,
+        }
+    elif platform == 'OpenTable':
+        actor_id = 'canadesk~opentable'
+        input_data = {
+            'urls': [url],
+            'date': date.strftime('%Y-%m-%d'),
+            'partySize': party_size,
+        }
+    else:
+        return []
+
+    try:
+        run_resp = requests.post(
+            f'https://api.apify.com/v2/acts/{actor_id}/runs',
+            params={'token': token},
+            json=input_data,
+            timeout=15,
+        )
+        run_resp.raise_for_status()
+        run_id = run_resp.json()['data']['id']
+
+        for _ in range(12):
+            time.sleep(5)
+            status_resp = requests.get(
+                f'https://api.apify.com/v2/actor-runs/{run_id}',
+                params={'token': token},
+                timeout=10,
+            )
+            status = status_resp.json()['data']['status']
+            if status == 'SUCCEEDED':
+                break
+            if status in ('FAILED', 'ABORTED', 'TIMED-OUT'):
+                return []
+        else:
+            return []
+
+        items_resp = requests.get(
+            f'https://api.apify.com/v2/actor-runs/{run_id}/dataset/items',
+            params={'token': token},
+            timeout=10,
+        )
+        items = items_resp.json()
+
+        slots = []
+        for item in items:
+            time_str = item.get('time') or item.get('start', '')
+            if time_str:
+                slots.append(time_str)
+        return slots
+
+    except Exception as e:
+        print(f"   ⚠️  Apify query failed for {platform}: {e}")
+        return []
+
+
+def get_reservation_times(restaurant, friday, saturday, apify_token):
+    """Check reservation availability for one restaurant on Friday + Saturday.
+    Returns a dict with slots, platform info, and error state."""
+    platform = restaurant.get('Reservation_Platform', 'None')
+    platform_url = restaurant.get('Platform_URL', '')
+    phone = restaurant.get('Phone', '')
+
+    if platform in ('None', '', None) or not platform_url:
+        return {
+            'friday_slots': [],
+            'saturday_slots': [],
+            'platform': None,
+            'booking_url': None,
+            'phone': phone,
+            'error': 'no_platform',
+        }
+
+    friday_slots = query_apify(platform, platform_url, friday, apify_token)
+    saturday_slots = query_apify(platform, platform_url, saturday, apify_token)
+
+    return {
+        'friday_slots': friday_slots,
+        'saturday_slots': saturday_slots,
+        'platform': platform,
+        'booking_url': platform_url,
+        'phone': phone,
+        'error': None,
+    }
+
+
+def fetch_all_reservations(restaurants, friday, saturday, apify_token):
+    """Query reservation availability for all restaurants in parallel.
+    Returns a dict keyed by restaurant Name."""
+    results = {}
+
+    candidates = [
+        r for r in restaurants
+        if r.get('Reservation_Platform', 'None') not in ('None', '', None)
+        and r.get('Platform_URL')
+    ]
+
+    if not candidates:
+        return results
+
+    print(f"   Checking reservations for {len(candidates)} restaurants…")
+
+    def _query(r):
+        return r.get('Name', ''), get_reservation_times(r, friday, saturday, apify_token)
+
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        futures = {pool.submit(_query, r): r for r in candidates}
+        for future in as_completed(futures):
+            try:
+                name, data = future.result()
+                if name:
+                    results[name] = data
+            except Exception as e:
+                r = futures[future]
+                print(f"   ⚠️  Reservation check failed for {r.get('Name', '?')}: {e}")
+
+    print(f"   Got reservation data for {len(results)} restaurants")
+    return results
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def is_correct_schedule_slot(expected_et_hour):
@@ -572,6 +708,46 @@ def render_timeline_html(calendar_events, open_windows):
     return "\n".join(html_parts)
 
 
+def render_reservation_html(reservation):
+    """Render the reservation availability row for a suggestion card."""
+    if not reservation:
+        return ''
+
+    error = reservation.get('error')
+    phone = reservation.get('phone', '')
+    booking_url = reservation.get('booking_url', '')
+    platform = reservation.get('platform', '')
+
+    if error == 'no_platform':
+        if phone:
+            return f'    <div class="reservation-row">📞 No online reservations — <a href="tel:{phone}" class="reservation-link">call to book</a></div>'
+        return ''
+
+    if error:
+        if booking_url:
+            return f'    <div class="reservation-row">⚠️ Couldn\'t check availability — <a href="{booking_url}" target="_blank" class="reservation-link">check {platform}</a></div>'
+        return ''
+
+    fri_slots = reservation.get('friday_slots', [])
+    sat_slots = reservation.get('saturday_slots', [])
+
+    if fri_slots or sat_slots:
+        parts = []
+        if fri_slots:
+            parts.append(f'Fri: {", ".join(fri_slots[:4])}')
+        if sat_slots:
+            parts.append(f'Sat: {", ".join(sat_slots[:4])}')
+        slots_text = ' | '.join(parts)
+        link_html = f' <a href="{booking_url}" target="_blank" class="reservation-link">Reserve on {platform} →</a>' if booking_url else ''
+        return f'    <div class="reservation-row">🕐 {slots_text}{link_html}</div>'
+
+    if phone:
+        return f'    <div class="reservation-row">📞 Fully booked this weekend — <a href="tel:{phone}" class="reservation-link">try calling directly</a></div>'
+    if booking_url:
+        return f'    <div class="reservation-row">😔 Fully booked this weekend — <a href="{booking_url}" target="_blank" class="reservation-link">check {platform}</a></div>'
+    return '    <div class="reservation-row">😔 Fully booked this weekend — try calling directly</div>'
+
+
 def render_suggestion_card(s):
     day = s.get("window_day", "friday").lower()
     window_class = f"window-{day}" if day in ("friday", "saturday", "sunday") else "window-friday"
@@ -585,6 +761,7 @@ def render_suggestion_card(s):
     data_name = s.get("data_name", "")
     safe_name = data_name.replace("'", "&#39;")
     record_id = s.get("data_record_id", "")
+    reservation_html = render_reservation_html(s.get("_reservation"))
     feedback_html = (
         '    <div class="feedback-row">\n'
         f'      <button class="feedback-btn" onclick="handleFeedback(this,\'{data_type}\',\'{safe_name}\',\'love\')"><span>❤️</span><span class="fb-label">Love</span></button>\n'
@@ -593,6 +770,7 @@ def render_suggestion_card(s):
         f'      <button class="feedback-btn" onclick="handleFeedback(this,\'{data_type}\',\'{safe_name}\',\'swap\')"><span>🔄</span><span class="fb-label">Swap</span></button>\n'
         '    </div>'
     )
+    reservation_line = f'{reservation_html}\n' if reservation_html else ''
     return (
         f'    <div class="suggestion-card" data-record-id="{record_id}" data-name="{data_name}" data-type="{data_type}">\n'
         f'      <div class="suggestion-window-bar {window_class}">{s.get("emoji","🌙")} {s.get("window_label","EVENING")}</div>\n'
@@ -600,6 +778,7 @@ def render_suggestion_card(s):
         f'        <div class="suggestion-title">{s.get("title","")}</div>\n'
         f'        <div class="suggestion-desc">{s.get("description","")}</div>\n'
         f'        <div class="chip-row">{chips_html}</div>\n'
+        f'{reservation_line}'
         f'{feedback_html}\n'
         f'      </div>\n'
         f'    </div>'
@@ -725,6 +904,14 @@ def main():
     open_windows    = find_open_windows(calendar_events, friday, saturday, sunday)
     print(f"   Open windows: {len(open_windows)}")
 
+    # ── Reservation availability (Apify) ──
+    reservation_data = {}
+    if APIFY_API_TOKEN:
+        print("🍽️  Checking reservation availability…")
+        reservation_data = fetch_all_reservations(restaurants, friday, saturday, APIFY_API_TOKEN)
+    else:
+        print("   ⚠️  APIFY_API_TOKEN not set — skipping reservation checks.")
+
     # ── Filter Airtable events ──
     today = datetime.date.today()
     cutoff_radar = today + datetime.timedelta(days=75)
@@ -818,6 +1005,12 @@ Each suggestion object has these fields:
 For each event in the COMING UP list, provide a 1-2 sentence note about why it might
 be interesting for the family. Key = exact event Name, value = the note string.
 
+## RESERVATION AVAILABILITY
+If reservation data is provided for a restaurant, weave it naturally into the description.
+For example: "Tables open at 7 and 7:30 Friday — grab one before they fill up."
+If a restaurant is fully booked, suggest calling or trying a different night.
+Don't list exact times in the description (those are shown separately in the card).
+
 ## TONE
 Knowledgeable friend, not a concierge. Vivid, specific Charlotte copy.
 Two young boys (Will and Cam). Mix of family days and date nights.
@@ -842,6 +1035,9 @@ Two young boys (Will and Cam). Mix of family days and date nights.
 
 ## FRIENDS / FAMILIES (for "who to invite" callouts)
 {json.dumps(friends_summary, indent=2)}
+
+## RESERVATION AVAILABILITY (for restaurants with online booking)
+{json.dumps(reservation_data, indent=2) if reservation_data else "No reservation data available — APIFY_API_TOKEN not configured."}
 """
 
     print(f"🤖 Calling Claude API for content JSON (model: {CLAUDE_MODEL})…")
@@ -873,6 +1069,13 @@ Two young boys (Will and Cam). Mix of family days and date nights.
     coming_up_notes = content.get("coming_up_notes", {})
 
     print(f"   Got {len(suggestions)} suggestions, {len(coming_up_notes)} coming-up notes")
+
+    # Attach reservation data to each suggestion for deterministic HTML rendering
+    if reservation_data:
+        for s in suggestions:
+            name = s.get("data_name", "")
+            if name in reservation_data:
+                s["_reservation"] = reservation_data[name]
 
     # ── Render HTML from template ──
     html = render_html(weekend_label, weather, calendar_events, open_windows,

@@ -141,14 +141,24 @@
 
   /* RESERVATION ROW */
   .reservation-row {
-    font-size: 13px; color: #374151; line-height: 1.5;
+    font-size: 13px; color: #374151; line-height: 1.8;
     padding: 8px 0 4px; margin-bottom: 8px;
     border-top: 1px solid #f3f4f6;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
   }
   .reservation-link {
     color: #3a7bd5; text-decoration: none; font-weight: 500;
   }
   .reservation-link:hover { text-decoration: underline; }
+  .slot-pill {
+    display: inline-block; background: #eef4fd; color: #2563eb;
+    padding: 4px 10px; border-radius: 16px; font-size: 12px;
+    font-weight: 600; white-space: nowrap;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .slot-pill:hover { background: #dbeafe; text-decoration: none; }
+  .slot-pill:active { transform: scale(0.95); }
+  .slot-divider { color: #d1d5db; font-weight: 400; margin: 0 2px; }
 
   /* FEEDBACK */
   .feedback-row { display: flex; border-top: 1px solid #f3f4f6; padding-top: 10px; gap: 4px; }

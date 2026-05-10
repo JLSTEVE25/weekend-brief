@@ -718,6 +718,25 @@ def render_timeline_html(calendar_events, open_windows):
     return "\n".join(html_parts)
 
 
+def build_booking_link(platform, platform_url, date_str, time_slot=None, party_size=2):
+    """Build a deep link to the booking platform pre-filled with date, time, and party size."""
+    if not platform_url:
+        return ''
+    sep = '&' if '?' in platform_url else '?'
+    if platform == 'Resy':
+        return f'{platform_url}{sep}date={date_str}&seats={party_size}'
+    elif platform == 'OpenTable':
+        if time_slot:
+            return f'{platform_url}{sep}dateTime={date_str}T{time_slot}&covers={party_size}'
+        return f'{platform_url}{sep}dateTime={date_str}&covers={party_size}'
+    elif platform == 'Tock':
+        params = f'{sep}date={date_str}&size={party_size}'
+        if time_slot:
+            params += f'&time={time_slot}'
+        return f'{platform_url}{params}'
+    return platform_url
+
+
 def render_reservation_html(reservation):
     """Render the reservation availability row for a suggestion card."""
     if not reservation:
@@ -727,6 +746,9 @@ def render_reservation_html(reservation):
     phone = reservation.get('phone', '')
     booking_url = reservation.get('booking_url', '')
     platform = reservation.get('platform', '')
+    party_size = reservation.get('party_size', 2)
+    fri_date = reservation.get('friday_date', '')
+    sat_date = reservation.get('saturday_date', '')
 
     if error == 'no_platform':
         if phone:
@@ -735,7 +757,8 @@ def render_reservation_html(reservation):
 
     if error == 'tock_no_scrape':
         if booking_url:
-            return f'    <div class="reservation-row">🕐 <a href="{booking_url}" target="_blank" class="reservation-link">Check availability on Tock →</a></div>'
+            link = build_booking_link('Tock', booking_url, fri_date, party_size=party_size)
+            return f'    <div class="reservation-row">🕐 <a href="{link}" target="_blank" class="reservation-link slot-pill">Check availability on Tock →</a></div>'
         return ''
 
     if error:
@@ -749,17 +772,25 @@ def render_reservation_html(reservation):
     if fri_slots or sat_slots:
         parts = []
         if fri_slots:
-            parts.append(f'Fri: {", ".join(fri_slots[:4])}')
+            slot_links = []
+            for slot in fri_slots[:4]:
+                link = build_booking_link(platform, booking_url, fri_date, slot, party_size)
+                slot_links.append(f'<a href="{link}" target="_blank" class="reservation-link slot-pill">{slot}</a>')
+            parts.append(f'Fri: {" ".join(slot_links)}')
         if sat_slots:
-            parts.append(f'Sat: {", ".join(sat_slots[:4])}')
-        slots_text = ' | '.join(parts)
-        link_html = f' <a href="{booking_url}" target="_blank" class="reservation-link">Reserve on {platform} →</a>' if booking_url else ''
-        return f'    <div class="reservation-row">🕐 {slots_text}{link_html}</div>'
+            slot_links = []
+            for slot in sat_slots[:4]:
+                link = build_booking_link(platform, booking_url, sat_date, slot, party_size)
+                slot_links.append(f'<a href="{link}" target="_blank" class="reservation-link slot-pill">{slot}</a>')
+            parts.append(f'Sat: {" ".join(slot_links)}')
+        slots_html = ' <span class="slot-divider">|</span> '.join(parts)
+        return f'    <div class="reservation-row">🕐 {slots_html}</div>'
 
     if phone:
         return f'    <div class="reservation-row">📞 Fully booked this weekend — <a href="tel:{phone}" class="reservation-link">try calling directly</a></div>'
     if booking_url:
-        return f'    <div class="reservation-row">😔 Fully booked this weekend — <a href="{booking_url}" target="_blank" class="reservation-link">check {platform}</a></div>'
+        link = build_booking_link(platform, booking_url, fri_date, party_size=party_size)
+        return f'    <div class="reservation-row">😔 Fully booked this weekend — <a href="{link}" target="_blank" class="reservation-link">check {platform}</a></div>'
     return '    <div class="reservation-row">😔 Fully booked this weekend — try calling directly</div>'
 
 
@@ -1086,11 +1117,23 @@ Two young boys (Will and Cam). Mix of family days and date nights.
     print(f"   Got {len(suggestions)} suggestions, {len(coming_up_notes)} coming-up notes")
 
     # Attach reservation data to each suggestion for deterministic HTML rendering
-    if reservation_data:
-        for s in suggestions:
-            name = s.get("data_name", "")
-            if name in reservation_data:
-                s["_reservation"] = reservation_data[name]
+    for s in suggestions:
+        name = s.get("data_name", "")
+        chips = [c.get("type", "") for c in s.get("chips", [])]
+        party_size = 4 if "family" in chips else 2
+
+        if name in reservation_data:
+            res = dict(reservation_data[name])
+        elif s.get("data_type") == "restaurant":
+            res = {'error': None, 'friday_slots': [], 'saturday_slots': [],
+                   'platform': None, 'booking_url': None, 'phone': ''}
+        else:
+            continue
+
+        res['friday_date'] = friday.isoformat()
+        res['saturday_date'] = saturday.isoformat()
+        res['party_size'] = party_size
+        s["_reservation"] = res
 
     # ── Render HTML from template ──
     html = render_html(weekend_label, weather, calendar_events, open_windows,

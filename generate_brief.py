@@ -541,6 +541,16 @@ def get_reservation_times(restaurant, friday, saturday, apify_token):
             'error': 'no_platform',
         }
 
+    if platform == 'Tock':
+        return {
+            'friday_slots': [],
+            'saturday_slots': [],
+            'platform': 'Tock',
+            'booking_url': platform_url,
+            'phone': phone,
+            'error': 'tock_no_scrape',
+        }
+
     friday_slots = query_apify(platform, platform_url, friday, apify_token)
     saturday_slots = query_apify(platform, platform_url, saturday, apify_token)
 
@@ -721,6 +731,11 @@ def render_reservation_html(reservation):
     if error == 'no_platform':
         if phone:
             return f'    <div class="reservation-row">📞 No online reservations — <a href="tel:{phone}" class="reservation-link">call to book</a></div>'
+        return ''
+
+    if error == 'tock_no_scrape':
+        if booking_url:
+            return f'    <div class="reservation-row">🕐 <a href="{booking_url}" target="_blank" class="reservation-link">Check availability on Tock →</a></div>'
         return ''
 
     if error:

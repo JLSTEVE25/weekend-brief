@@ -30,6 +30,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 import anthropic
 
+from render_weekend import (
+    render_weather_html, render_timeline_html,
+    render_weekend_ideas_html, render_date_night_html,
+)
+from render_coming_up import render_coming_up_html
+
 try:
     from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request as GoogleRequest
@@ -616,295 +622,23 @@ def is_correct_schedule_slot(expected_et_hour):
     return False
 
 
-# ── Render helpers (template-based output) ──────────────────────────────────
-
-def get_weather_icon(code):
-    icons = {0: "☀️", 1: "🌤", 2: "⛅", 3: "☁️", 45: "🌫", 48: "🌫",
-             51: "🌦", 53: "🌦", 55: "🌧", 61: "🌧", 63: "🌧", 65: "🌧",
-             71: "🌨", 73: "🌨", 75: "❄️", 80: "🌦", 81: "🌧", 82: "⛈",
-             95: "⛈", 96: "⛈", 99: "⛈"}
-    return icons.get(code, "🌤")
-
-
-def render_weather_html(weather):
-    if not weather:
-        return '<div class="weather-day"><span class="weather-day-label">No data</span></div>'
-    html_parts = []
-    for day in weather:
-        rain_pct = day.get("rain_pct", 0)
-        rain_class = ' high-rain' if rain_pct >= 50 else ''
-        html_parts.append(f'''      <div class="weather-day">
-        <div class="weather-day-label">{day["day"]}</div>
-        <div class="weather-icon">{day.get("icon", "🌤")}</div>
-        <div class="weather-temps">{day["high"]}° <span class="weather-low">{day["low"]}°</span></div>
-        <div class="weather-rain{rain_class}">💧 {rain_pct}%</div>
-      </div>''')
-    return "\n".join(html_parts)
-
-
-def render_timeline_html(calendar_events, open_windows):
-    if not calendar_events and not open_windows:
-        return '    <div class="calendar-empty">Calendar sync coming soon</div>'
-    days = {"FRIDAY": [], "SATURDAY": [], "SUNDAY": []}
-    day_map = {"fri": "FRIDAY", "sat": "SATURDAY", "sun": "SUNDAY",
-               "friday": "FRIDAY", "saturday": "SATURDAY", "sunday": "SUNDAY"}
-    for ev in calendar_events:
-        start = ev.get("start", "")
-        if "T" in start:
-            try:
-                dt = datetime.datetime.fromisoformat(start)
-                day_key = dt.strftime("%A").upper()
-                sort_key = dt.strftime("%H:%M")
-            except ValueError:
-                continue
-        else:
-            try:
-                dt = datetime.date.fromisoformat(start)
-                day_key = dt.strftime("%A").upper()
-                sort_key = "00:00"
-            except ValueError:
-                continue
-        if day_key in days:
-            ev["_sort_key"] = sort_key
-            ev["_time_display"] = dt.strftime("%-I:%M %p").lstrip("0") if "T" in start else "All day"
-            days[day_key].append(ev)
-    for w in open_windows:
-        day_key = day_map.get(w.get("day", "").lower(), "")
-        if day_key in days:
-            block = w.get("window", "evening")
-            label = "Nothing planned ✨" if block != "morning" else "Morning free ✨"
-            raw_time = w.get("start_time", "17:00")
-            try:
-                t = datetime.datetime.strptime(raw_time, "%H:%M")
-                display_time = t.strftime("%-I:%M %p").lstrip("0")
-            except ValueError:
-                display_time = raw_time
-            days[day_key].append({
-                "_is_free": True, "_sort_key": raw_time,
-                "_time_display": display_time, "label": label,
-            })
-    html_parts = ['    <div class="timeline-card">']
-    for day_name in ["FRIDAY", "SATURDAY", "SUNDAY"]:
-        events = days[day_name]
-        if not events:
-            html_parts.append(f'      <div class="timeline-day-header">{day_name}</div>')
-            html_parts.append('      <div class="timeline-event free-window"><div class="timeline-connector"><div class="timeline-dot"></div></div><div class="timeline-body"><span class="free-text">All day free ✨</span></div></div>')
-            continue
-        events.sort(key=lambda e: e.get("_sort_key", "99:99"))
-        html_parts.append(f'      <div class="timeline-day-header">{day_name}</div>')
-        for ev in events:
-            if ev.get("_is_free"):
-                html_parts.append(f'''      <div class="timeline-event free-window">
-        <div class="timeline-connector"><div class="timeline-dot"></div></div>
-        <div class="timeline-time">{ev["_time_display"]}</div>
-        <div class="timeline-body"><span class="free-text">{ev["label"]}</span></div>
-      </div>''')
-            else:
-                cal = ev.get("calendar", "family")
-                badge_class = "john" if "john" in cal.lower() else "sara" if "sara" in cal.lower() else "family"
-                badge_letter = "J" if badge_class == "john" else "S" if badge_class == "sara" else "F"
-                time_str = ev.get("_time_display", "All day")
-                location_html = f'<div class="timeline-location">{ev["location"]}</div>' if ev.get("location") else ''
-                html_parts.append(f'''      <div class="timeline-event has-event">
-        <div class="timeline-connector"><div class="timeline-dot"></div></div>
-        <div class="timeline-time">{time_str}</div>
-        <div class="timeline-body">
-          <div class="timeline-title">{ev.get("summary", "Event")}</div>
-          {location_html}
-        </div>
-        <div class="cal-badge {badge_class}">{badge_letter}</div>
-      </div>''')
-    html_parts.append('    </div>')
-    return "\n".join(html_parts)
-
-
-def build_booking_link(platform, platform_url, date_str, time_slot=None, party_size=2):
-    """Build a deep link to the booking platform pre-filled with date, time, and party size."""
-    if not platform_url:
-        return ''
-    sep = '&' if '?' in platform_url else '?'
-    if platform == 'Resy':
-        return f'{platform_url}{sep}date={date_str}&seats={party_size}'
-    elif platform == 'OpenTable':
-        if time_slot:
-            return f'{platform_url}{sep}dateTime={date_str}T{time_slot}&covers={party_size}'
-        return f'{platform_url}{sep}dateTime={date_str}&covers={party_size}'
-    elif platform == 'Tock':
-        params = f'{sep}date={date_str}&size={party_size}'
-        if time_slot:
-            params += f'&time={time_slot}'
-        return f'{platform_url}{params}'
-    return platform_url
-
-
-def render_reservation_html(reservation):
-    """Render the reservation availability row for a suggestion card."""
-    if not reservation:
-        return ''
-
-    error = reservation.get('error')
-    phone = reservation.get('phone', '')
-    booking_url = reservation.get('booking_url', '')
-    platform = reservation.get('platform', '')
-    party_size = reservation.get('party_size', 2)
-    fri_date = reservation.get('friday_date', '')
-    sat_date = reservation.get('saturday_date', '')
-
-    if error == 'no_platform':
-        if phone:
-            return f'    <div class="reservation-row">📞 No online reservations — <a href="tel:{phone}" class="reservation-link">call to book</a></div>'
-        return ''
-
-    if error == 'tock_no_scrape':
-        if booking_url:
-            link = build_booking_link('Tock', booking_url, fri_date, party_size=party_size)
-            return f'    <div class="reservation-row">🕐 <a href="{link}" target="_blank" class="reservation-link slot-pill">Check availability on Tock →</a></div>'
-        return ''
-
-    if error:
-        if booking_url:
-            return f'    <div class="reservation-row">⚠️ Couldn\'t check availability — <a href="{booking_url}" target="_blank" class="reservation-link">check {platform}</a></div>'
-        return ''
-
-    fri_slots = reservation.get('friday_slots', [])
-    sat_slots = reservation.get('saturday_slots', [])
-
-    if fri_slots or sat_slots:
-        parts = []
-        if fri_slots:
-            slot_links = []
-            for slot in fri_slots[:4]:
-                link = build_booking_link(platform, booking_url, fri_date, slot, party_size)
-                slot_links.append(f'<a href="{link}" target="_blank" class="reservation-link slot-pill">{slot}</a>')
-            parts.append(f'Fri: {" ".join(slot_links)}')
-        if sat_slots:
-            slot_links = []
-            for slot in sat_slots[:4]:
-                link = build_booking_link(platform, booking_url, sat_date, slot, party_size)
-                slot_links.append(f'<a href="{link}" target="_blank" class="reservation-link slot-pill">{slot}</a>')
-            parts.append(f'Sat: {" ".join(slot_links)}')
-        slots_html = ' <span class="slot-divider">|</span> '.join(parts)
-        return f'    <div class="reservation-row">🕐 {slots_html}</div>'
-
-    if phone:
-        return f'    <div class="reservation-row">📞 Fully booked this weekend — <a href="tel:{phone}" class="reservation-link">try calling directly</a></div>'
-    if booking_url:
-        link = build_booking_link(platform, booking_url, fri_date, party_size=party_size)
-        return f'    <div class="reservation-row">😔 Fully booked this weekend — <a href="{link}" target="_blank" class="reservation-link">check {platform}</a></div>'
-    return '    <div class="reservation-row">😔 Fully booked this weekend — try calling directly</div>'
-
-
-def render_suggestion_card(s):
-    day = s.get("window_day", "friday").lower()
-    window_class = f"window-{day}" if day in ("friday", "saturday", "sunday") else "window-friday"
-    chips_html = ""
-    for chip in s.get("chips", []):
-        chip_type = chip.get("type", "neighborhood")
-        chips_html += f'<span class="chip chip-{chip_type}">{chip.get("label", "")}</span>'
-    if s.get("invite"):
-        chips_html += f'<span class="chip chip-invite">👋 {s["invite"]}</span>'
-    data_type = s.get("data_type", "restaurant")
-    data_name = s.get("data_name", "")
-    safe_name = data_name.replace("'", "&#39;")
-    record_id = s.get("data_record_id", "")
-    reservation_html = render_reservation_html(s.get("_reservation"))
-    feedback_html = (
-        '    <div class="feedback-row">\n'
-        f'      <button class="feedback-btn" onclick="handleFeedback(this,\'{data_type}\',\'{safe_name}\',\'love\')"><span>❤️</span><span class="fb-label">Love</span></button>\n'
-        f'      <button class="feedback-btn" onclick="handleFeedback(this,\'{data_type}\',\'{safe_name}\',\'nope\')"><span>👎</span><span class="fb-label">Nope</span></button>\n'
-        f'      <button class="feedback-btn" onclick="handleFeedback(this,\'{data_type}\',\'{safe_name}\',\'interested\')"><span>👀</span><span class="fb-label">Interested</span></button>\n'
-        f'      <button class="feedback-btn" onclick="handleFeedback(this,\'{data_type}\',\'{safe_name}\',\'swap\')"><span>🔄</span><span class="fb-label">Swap</span></button>\n'
-        '    </div>'
-    )
-    reservation_line = f'{reservation_html}\n' if reservation_html else ''
-    return (
-        f'    <div class="suggestion-card" data-record-id="{record_id}" data-name="{data_name}" data-type="{data_type}">\n'
-        f'      <div class="suggestion-window-bar {window_class}">{s.get("emoji","🌙")} {s.get("window_label","EVENING")}</div>\n'
-        f'      <div class="suggestion-body">\n'
-        f'        <div class="suggestion-title">{s.get("title","")}</div>\n'
-        f'        <div class="suggestion-desc">{s.get("description","")}</div>\n'
-        f'        <div class="chip-row">{chips_html}</div>\n'
-        f'{reservation_line}'
-        f'{feedback_html}\n'
-        f'      </div>\n'
-        f'    </div>'
-    )
-
-
-def render_coming_up_card(event, notes_text):
-    date_str = event.get("Date", "")
-    d = parse_event_date(date_str)
-    if d:
-        month_str = d.strftime("%b").upper()
-        day_num = d.day
-        dow_str = d.strftime("%a")
-    else:
-        month_str = "TBD"
-        day_num = "?"
-        dow_str = ""
-    name = event.get("Name", "Event")
-    venue = event.get("Venue", "")
-    record_id = event.get("_record_id", "")
-    conflicts = event.get("calendar_conflicts", [])
-    if conflicts:
-        first = conflicts[0]
-        conflict_text = f'⚠️ You have {first.get("summary","")} ({first.get("calendar","")}) that day'
-        if len(conflicts) > 1:
-            conflict_text += f' +{len(conflicts)-1} more'
-        conflict_html = f'<div class="conflict-banner">{conflict_text}</div>'
-    else:
-        conflict_html = '<div class="clear-banner">✅ Calendar looks clear</div>'
-    notes_html = f'<div class="coming-up-notes">{notes_text}</div>' if notes_text else ''
-    chips_html = ''
-    if event.get("Price"):
-        chips_html += f'<span class="chip chip-price">{event["Price"]}</span>'
-    if event.get("Neighborhood"):
-        chips_html += f'<span class="chip chip-neighborhood">{event["Neighborhood"]}</span>'
-    chip_row = f'<div class="chip-row">{chips_html}</div>' if chips_html else ''
-    safe_name = name.replace("'", "&#39;")
-    feedback_html = (
-        '    <div class="feedback-row">\n'
-        f'      <button class="feedback-btn" onclick="handleFeedback(this,\'event\',\'{safe_name}\',\'love\')"><span>❤️</span><span class="fb-label">Love</span></button>\n'
-        f'      <button class="feedback-btn" onclick="handleFeedback(this,\'event\',\'{safe_name}\',\'nope\')"><span>👎</span><span class="fb-label">Nope</span></button>\n'
-        f'      <button class="feedback-btn" onclick="handleFeedback(this,\'event\',\'{safe_name}\',\'interested\')"><span>👀</span><span class="fb-label">Interested</span></button>\n'
-        f'      <button class="feedback-btn" onclick="handleFeedback(this,\'event\',\'{safe_name}\',\'swap\')"><span>🔄</span><span class="fb-label">Swap</span></button>\n'
-        '    </div>'
-    )
-    return (
-        f'    <div class="coming-up-card" data-record-id="{record_id}" data-name="{name}" data-type="event">\n'
-        f'      <div class="coming-up-header">\n'
-        f'        <div class="coming-up-date-block">\n'
-        f'          <div class="coming-up-month">{month_str}</div>\n'
-        f'          <div class="coming-up-day-num">{day_num}</div>\n'
-        f'          <div class="coming-up-dow">{dow_str}</div>\n'
-        f'        </div>\n'
-        f'        <div class="coming-up-info">\n'
-        f'          <div class="coming-up-name">{name}</div>\n'
-        f'          <div class="coming-up-venue">{venue}</div>\n'
-        f'        </div>\n'
-        f'      </div>\n'
-        f'      <div class="coming-up-body">\n'
-        f'        {conflict_html}\n'
-        f'        {notes_html}\n'
-        f'        {chip_row}\n'
-        f'{feedback_html}\n'
-        f'      </div>\n'
-        f'    </div>'
-    )
-
-
 def render_html(weekend_label, weather, calendar_events, open_windows,
-                suggestions, coming_up_notes, radar_events):
+                weekend_ideas, date_night, coming_up_notes, radar_events):
     template_path = os.path.join(os.path.dirname(__file__), "template.html")
     with open(template_path, "r", encoding="utf-8") as f:
         html = f.read()
+
+    today = datetime.date.today()
+    friday = today + datetime.timedelta(days=(4 - today.weekday()))
+    saturday = friday + datetime.timedelta(days=1)
+
     weather_html = render_weather_html(weather)
     timeline_html = render_timeline_html(calendar_events, open_windows)
-    suggestions_html = "\n".join(render_suggestion_card(s) for s in suggestions)
-    coming_up_html = "\n".join(
-        render_coming_up_card(ev, coming_up_notes.get(ev.get("Name", ""), ""))
-        for ev in radar_events
-    )
+    ideas_html = render_weekend_ideas_html(weekend_ideas)
+    dn_html = render_date_night_html(date_night, friday, saturday)
+    suggestions_html = ideas_html + "\n" + dn_html
+    coming_up_html = render_coming_up_html(radar_events, coming_up_notes)
+
     html = html.replace("{{WEEKEND_LABEL}}", weekend_label)
     html = html.replace("{{WEATHER_STRIP}}", weather_html)
     html = html.replace("{{TIMELINE_HTML}}", timeline_html)
@@ -1023,39 +757,55 @@ Return ONLY valid JSON. No markdown, no code fences, no explanation."""
     static_instructions = """## YOUR TASK
 
 Given weather, calendar events, open windows, restaurants, events, and friends data,
-return a JSON object with two keys:
+return a JSON object with THREE keys:
 
-### 1. "suggestions" — array of 4-5 suggestion objects
+### 1. "weekend_ideas" — array of 2-4 activity suggestion objects
 
-Each suggestion fills one open window (free time slot). Rules:
-- Friday evening free → date night unless Saturday AM is packed
-- Saturday afternoon free after busy morning → low-key family activity or easy dinner
-- Sunday all day free → adventure, group hangout, or brunch
-- Rainy forecast → indoor options; nice weather → outdoor / patio
-- Mix family and date-night picks
+These are broader lifestyle recommendations — NOT all restaurant-focused. Think: "here's
+what I'd do this weekend." Examples of good ideas:
+- "Stay home and watch a movie with the kids — it's going to rain all Saturday"
+- "Invite the Blackburns over for a grill out — beautiful weather and you're free all afternoon"
+- "Check out the Truist golf tournament at Quail Hollow"
+- "Hit the greenway for a family bike ride before it gets hot"
+- "Fire up the smoker Saturday morning — you have all day"
 
-Each suggestion object has these fields:
-- "window_label": e.g. "FRIDAY EVENING", "SATURDAY AFTERNOON", "SUNDAY MORNING"
+Rules:
+- Vary the types: home activities, outdoor adventures, social gatherings, local events
+- At most ONE can reference a restaurant/bar; the rest should be non-dining activities
+- Weather-aware: rainy → indoor; nice weather → outdoor/patio/yard
+- Schedule-aware: reference what's on the calendar ("After soccer wraps Saturday morning...")
+- Can reference friends from the friends list for "invite" suggestions
+
+Each object:
+- "title": short punchy headline (e.g. "Backyard grill night")
+- "description": 2-3 sentences, conversational tone, references weather/schedule context
+- "emoji": one relevant emoji
+- "invite": friend name or null
 - "window_day": "friday" | "saturday" | "sunday"
-- "emoji": one emoji for the window
-- "title": bold suggestion name (restaurant or activity)
-- "description": 2-3 sentences explaining why it fits (weather, vibe, what came before)
-- "chips": array of {type, label} where type is one of: "neighborhood", "price", "saturday", "sunday", "friday", "date-night", "family", "event"
-- "invite": friend/family name to invite (or null)
-- "data_type": "restaurant" or "event"
-- "data_name": the Name field from the source record
-- "data_record_id": the _record_id from the source record
+- "window_label": "FRIDAY EVENING", "SATURDAY AFTERNOON", etc.
 
-### 2. "coming_up_notes" — object keyed by event Name
+### 2. "date_night" — object OR null
+
+Only include this if Friday or Saturday evening is free (check open_windows).
+If no free evening exists, set "date_night": null.
+
+Structure:
+- "intro_text": contextual sentence, e.g. "You're free Friday night. Consider a date night at:"
+- "target_day": "friday" or "saturday"
+- "restaurants": array of exactly 3 restaurant objects picked from the restaurant data. Each:
+  - "name": exact Name field from the restaurant record
+  - "data_record_id": the _record_id from the restaurant record
+  - "neighborhood": from the record
+  - "price": e.g. "$$$"
+  - "vibe": one short phrase describing the experience (e.g. "Candlelit Southern steakhouse")
+  - "party_size": 2 for a couple, 4 if suggesting a double date with friends
+
+Pick 3 restaurants that offer variety (different neighborhoods, cuisines, price points).
+
+### 3. "coming_up_notes" — object keyed by event Name
 
 For each event in the COMING UP list, provide a 1-2 sentence note about why it might
 be interesting for the family. Key = exact event Name, value = the note string.
-
-## RESERVATION AVAILABILITY
-If reservation data is provided for a restaurant, weave it naturally into the description.
-For example: "Tables open at 7 and 7:30 Friday — grab one before they fill up."
-If a restaurant is fully booked, suggest calling or trying a different night.
-Don't list exact times in the description (those are shown separately in the card).
 
 ## TONE
 Knowledgeable friend, not a concierge. Vivid, specific Charlotte copy.
@@ -1111,33 +861,32 @@ Two young boys (Will and Cam). Mix of family days and date nights.
     raw = raw.strip()
 
     content = json.loads(raw)
-    suggestions = content.get("suggestions", [])
+    weekend_ideas = content.get("weekend_ideas", [])
+    date_night = content.get("date_night", None)
     coming_up_notes = content.get("coming_up_notes", {})
 
-    print(f"   Got {len(suggestions)} suggestions, {len(coming_up_notes)} coming-up notes")
+    print(f"   Got {len(weekend_ideas)} weekend ideas, "
+          f"date_night={'yes' if date_night else 'no'}, "
+          f"{len(coming_up_notes)} coming-up notes")
 
-    # Attach reservation data to each suggestion for deterministic HTML rendering
-    for s in suggestions:
-        name = s.get("data_name", "")
-        chips = [c.get("type", "") for c in s.get("chips", [])]
-        party_size = 4 if "family" in chips else 2
-
-        if name in reservation_data:
-            res = dict(reservation_data[name])
-        elif s.get("data_type") == "restaurant":
-            res = {'error': None, 'friday_slots': [], 'saturday_slots': [],
-                   'platform': None, 'booking_url': None, 'phone': ''}
-        else:
-            continue
-
-        res['friday_date'] = friday.isoformat()
-        res['saturday_date'] = saturday.isoformat()
-        res['party_size'] = party_size
-        s["_reservation"] = res
+    # Attach reservation data to date night restaurants
+    if date_night and date_night.get("restaurants"):
+        for r in date_night["restaurants"]:
+            name = r.get("name", "")
+            party_size = r.get("party_size", 2)
+            if name in reservation_data:
+                res = dict(reservation_data[name])
+            else:
+                res = {'error': None, 'friday_slots': [], 'saturday_slots': [],
+                       'platform': None, 'booking_url': None, 'phone': ''}
+            res['friday_date'] = friday.isoformat()
+            res['saturday_date'] = saturday.isoformat()
+            res['party_size'] = party_size
+            r["_reservation"] = res
 
     # ── Render HTML from template ──
     html = render_html(weekend_label, weather, calendar_events, open_windows,
-                       suggestions, coming_up_notes, radar_events_for_prompt)
+                       weekend_ideas, date_night, coming_up_notes, radar_events_for_prompt)
 
     # ── Save ──
     with open("index.html", "w", encoding="utf-8") as f:

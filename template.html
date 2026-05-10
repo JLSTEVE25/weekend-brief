@@ -224,6 +224,41 @@
 
   /* CALENDAR EMPTY STATE */
   .calendar-empty { text-align: center; color: #9ca3af; font-size: 14px; padding: 32px 20px; }
+
+  /* WEEKEND IDEAS */
+  .idea-card {
+    background: #fff; margin: 0 16px 12px; border-radius: 16px;
+    padding: 16px 18px; box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+  }
+  .idea-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .idea-emoji { font-size: 22px; flex-shrink: 0; }
+  .idea-title { font-size: 16px; font-weight: 700; color: #111827; line-height: 1.25; }
+  .idea-desc { font-size: 14px; color: #374151; line-height: 1.55; margin-bottom: 10px; }
+
+  /* DATE NIGHT GRID */
+  .date-night-section { padding: 0 16px 16px; }
+  .date-night-intro {
+    font-size: 15px; color: #4b5563; margin-bottom: 14px; padding: 0 4px;
+    line-height: 1.5; font-weight: 500;
+  }
+  .date-night-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  }
+  @media (max-width: 600px) {
+    .date-night-grid { grid-template-columns: 1fr; }
+  }
+  .dn-card {
+    background: #fff; border-radius: 14px; padding: 14px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .dn-name { font-size: 15px; font-weight: 700; color: #111827; line-height: 1.25; }
+  .dn-vibe { font-size: 13px; color: #6b7280; font-style: italic; line-height: 1.3; }
+  .dn-meta { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+  .dn-neighborhood { }
+  .dn-price { }
+  .dn-slots { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .dn-card .feedback-row { border-top: 1px solid #f3f4f6; padding-top: 8px; margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -271,7 +306,6 @@
   <div class="tab-panel active" id="tab-weekend">
     <div class="section-label">Your Weekend</div>
 {{TIMELINE_HTML}}
-    <div class="section-label">Suggestions</div>
 {{SUGGESTIONS_HTML}}
   </div>
 

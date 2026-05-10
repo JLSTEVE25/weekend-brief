@@ -141,14 +141,24 @@
 
   /* RESERVATION ROW */
   .reservation-row {
-    font-size: 13px; color: #374151; line-height: 1.5;
+    font-size: 13px; color: #374151; line-height: 1.8;
     padding: 8px 0 4px; margin-bottom: 8px;
     border-top: 1px solid #f3f4f6;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
   }
   .reservation-link {
     color: #3a7bd5; text-decoration: none; font-weight: 500;
   }
   .reservation-link:hover { text-decoration: underline; }
+  .slot-pill {
+    display: inline-block; background: #eef4fd; color: #2563eb;
+    padding: 4px 10px; border-radius: 16px; font-size: 12px;
+    font-weight: 600; white-space: nowrap;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .slot-pill:hover { background: #dbeafe; text-decoration: none; }
+  .slot-pill:active { transform: scale(0.95); }
+  .slot-divider { color: #d1d5db; font-weight: 400; margin: 0 2px; }
 
   /* FEEDBACK */
   .feedback-row { display: flex; border-top: 1px solid #f3f4f6; padding-top: 10px; gap: 4px; }
@@ -352,9 +362,9 @@
       <div class="suggestion-window-bar window-friday">🍷 FRIDAY EVENING</div>
       <div class="suggestion-body">
         <div class="suggestion-title">Supperland</div>
-        <div class="suggestion-desc">Friday's foggy and cool at 70 — perfect weather to slip into this restored Plaza Midwood church and let the wood-fired steakhouse vibes do the work. After a low-key kindergarten play morning, you've earned a proper date night: order off the shareable menu, let the speakeasy bar below tempt you for a nightcap, and enjoy the fact that Will and Cam are squared away. It books up fast on Tock, so check availability tonight and lock it down.</div>
+        <div class="suggestion-desc">Friday night is all yours after the kindergarten play wraps up at 9:30 — and a foggy 70-degree evening in Plaza Midwood is exactly the vibe for Supperland's candlelit, church-turned-steakhouse dining room. The wood-fired mains and Michelin-recognized cocktail program make it one of Charlotte's best date nights without feeling stuffy. Check Tock for availability and lock it down before the weekend crowd does.</div>
         <div class="chip-row"><span class="chip chip-neighborhood">Plaza Midwood</span><span class="chip chip-price">$$$</span><span class="chip chip-friday">Friday</span><span class="chip chip-date-night">Date Night</span></div>
-    <div class="reservation-row">🕐 <a href="https://www.exploretock.com/supperland-charlotte/" target="_blank" class="reservation-link">Check availability on Tock →</a></div>
+    <div class="reservation-row">🕐 <a href="https://www.exploretock.com/supperland-charlotte/?date=2026-05-08&size=2" target="_blank" class="reservation-link slot-pill">Check availability on Tock →</a></div>
     <div class="feedback-row">
       <button class="feedback-btn" onclick="handleFeedback(this,'restaurant','Supperland','love')"><span>❤️</span><span class="fb-label">Love</span></button>
       <button class="feedback-btn" onclick="handleFeedback(this,'restaurant','Supperland','nope')"><span>👎</span><span class="fb-label">Nope</span></button>
@@ -367,8 +377,9 @@
       <div class="suggestion-window-bar window-sunday">🥞 SUNDAY MORNING</div>
       <div class="suggestion-body">
         <div class="suggestion-title">Easy Like Sunday</div>
-        <div class="suggestion-desc">Sunday is a wide-open 83-degree day with almost zero rain chance — and this husband-and-wife brunch spot is practically made for it. The ricotta-stuffed French toast alone is worth the trip, everything's locally sourced, and Will and Cam will be perfectly happy here. Start the day right before the afternoon opens up.</div>
-        <div class="chip-row"><span class="chip chip-neighborhood">Multiple</span><span class="chip chip-price">$$</span><span class="chip chip-sunday">Sunday</span><span class="chip chip-family">Family</span><span class="chip chip-invite">👋 Shelby Blackburn</span></div>
+        <div class="suggestion-desc">Sunday is a clean slate and 83 degrees by afternoon — start it slow with the husband-wife team behind Easy Like Sunday, where the ricotta-stuffed French toast is the kind of thing Will and Cam will actually eat without negotiating. No reservations needed, locally sourced, and the laid-back vibe is perfect before a full afternoon out. It's a rare no-agenda Sunday morning — use it well.</div>
+        <div class="chip-row"><span class="chip chip-neighborhood">Multiple Locations</span><span class="chip chip-price">$$</span><span class="chip chip-sunday">Sunday</span><span class="chip chip-family">Family</span><span class="chip chip-invite">👋 Shelby Blackburn</span></div>
+    <div class="reservation-row">😔 Fully booked this weekend — try calling directly</div>
     <div class="feedback-row">
       <button class="feedback-btn" onclick="handleFeedback(this,'restaurant','Easy Like Sunday','love')"><span>❤️</span><span class="fb-label">Love</span></button>
       <button class="feedback-btn" onclick="handleFeedback(this,'restaurant','Easy Like Sunday','nope')"><span>👎</span><span class="fb-label">Nope</span></button>
@@ -381,8 +392,9 @@
       <div class="suggestion-window-bar window-sunday">🍺 SUNDAY AFTERNOON</div>
       <div class="suggestion-body">
         <div class="suggestion-title">Olde Mecklenburg Brewery (OMB)</div>
-        <div class="suggestion-desc">After brunch, let the boys run wild in OMB's massive biergarten while you grab a Copper lager and actually finish a conversation. With 83 degrees and barely a cloud in the sky, the playground and dog-friendly grounds are the move — pretzels and bratwurst keep everyone fed without anyone complaining. This is the kind of effortless Sunday afternoon Charlotte is made for.</div>
+        <div class="suggestion-desc">With Sunday climbing to 83 and mostly cloudy — ideal, no squinting — OMB's massive biergarten is the move for a wide-open afternoon. The actual playground keeps Will and Cam occupied while you work through a Mecktoberfest and a pretzel the size of your head. Bring another family and make an afternoon of it — this place is built for exactly that.</div>
         <div class="chip-row"><span class="chip chip-neighborhood">South Charlotte</span><span class="chip chip-price">$$</span><span class="chip chip-sunday">Sunday</span><span class="chip chip-family">Family</span><span class="chip chip-invite">👋 Barrett Blackburn</span></div>
+    <div class="reservation-row">😔 Fully booked this weekend — try calling directly</div>
     <div class="feedback-row">
       <button class="feedback-btn" onclick="handleFeedback(this,'restaurant','Olde Mecklenburg Brewery (OMB)','love')"><span>❤️</span><span class="fb-label">Love</span></button>
       <button class="feedback-btn" onclick="handleFeedback(this,'restaurant','Olde Mecklenburg Brewery (OMB)','nope')"><span>👎</span><span class="fb-label">Nope</span></button>
@@ -391,32 +403,33 @@
     </div>
       </div>
     </div>
-    <div class="suggestion-card" data-record-id="recto2UuYJC5YUMsB" data-name="Yunta" data-type="restaurant">
+    <div class="suggestion-card" data-record-id="recqCQkNxHDsAb53A" data-name="Haberdish" data-type="restaurant">
       <div class="suggestion-window-bar window-sunday">🌮 SUNDAY EVENING</div>
       <div class="suggestion-body">
-        <div class="suggestion-title">Yunta</div>
-        <div class="suggestion-desc">Cap off Mother's Day weekend with a proper date night at one of Charlotte's best — Peruvian-Japanese small plates in a room that earns the splurge. The boys can be handed off after OMB, and you two can ease into a Sunday evening without the Monday-morning guilt. Yunta books on Resy and this weekend will be competitive, so check tonight.</div>
-        <div class="chip-row"><span class="chip chip-neighborhood">Charlotte</span><span class="chip chip-price">$$$</span><span class="chip chip-sunday">Sunday</span><span class="chip chip-date-night">Date Night</span></div>
-    <div class="reservation-row">😔 Fully booked this weekend — <a href="https://resy.com/cities/charlotte-nc/venues/yunta" target="_blank" class="reservation-link">check Resy</a></div>
+        <div class="suggestion-title">Haberdish</div>
+        <div class="suggestion-desc">Cap the wide-open Sunday with Haberdish in NoDa — the fried chicken and cast iron trout hit different after a full day out, and Sunday brunch service transitions into a dinner crowd that's still pretty low-key. It books on OpenTable, so worth locking in a table before Sunday rolls around. A solid end to a full family day without anyone having to think too hard.</div>
+        <div class="chip-row"><span class="chip chip-neighborhood">NoDa</span><span class="chip chip-price">$$</span><span class="chip chip-sunday">Sunday</span><span class="chip chip-family">Family</span></div>
+    <div class="reservation-row">😔 Fully booked this weekend — <a href="https://www.opentable.com/r/haberdish-charlotte?dateTime=2026-05-08&covers=4" target="_blank" class="reservation-link">check OpenTable</a></div>
     <div class="feedback-row">
-      <button class="feedback-btn" onclick="handleFeedback(this,'restaurant','Yunta','love')"><span>❤️</span><span class="fb-label">Love</span></button>
-      <button class="feedback-btn" onclick="handleFeedback(this,'restaurant','Yunta','nope')"><span>👎</span><span class="fb-label">Nope</span></button>
-      <button class="feedback-btn" onclick="handleFeedback(this,'restaurant','Yunta','interested')"><span>👀</span><span class="fb-label">Interested</span></button>
-      <button class="feedback-btn" onclick="handleFeedback(this,'restaurant','Yunta','swap')"><span>🔄</span><span class="fb-label">Swap</span></button>
+      <button class="feedback-btn" onclick="handleFeedback(this,'restaurant','Haberdish','love')"><span>❤️</span><span class="fb-label">Love</span></button>
+      <button class="feedback-btn" onclick="handleFeedback(this,'restaurant','Haberdish','nope')"><span>👎</span><span class="fb-label">Nope</span></button>
+      <button class="feedback-btn" onclick="handleFeedback(this,'restaurant','Haberdish','interested')"><span>👀</span><span class="fb-label">Interested</span></button>
+      <button class="feedback-btn" onclick="handleFeedback(this,'restaurant','Haberdish','swap')"><span>🔄</span><span class="fb-label">Swap</span></button>
     </div>
       </div>
     </div>
-    <div class="suggestion-card" data-record-id="recXJRVrEMPkLICwX" data-name="Charlotte FC vs FC Cincinnati" data-type="event">
-      <div class="suggestion-window-bar window-saturday">⚽ SATURDAY AFTERNOON</div>
+    <div class="suggestion-card" data-record-id="rec4zmwM7V8fFsY41" data-name="Tipsy Pickle" data-type="restaurant">
+      <div class="suggestion-window-bar window-saturday">🎮 SATURDAY AFTERNOON</div>
       <div class="suggestion-body">
-        <div class="suggestion-title">Charlotte FC vs FC Cincinnati</div>
-        <div class="suggestion-desc">Saturday is already stacked with Cam's soccer, t-ball, and Will's soccer — so lean into the built-in momentum and make the FC match the anchor of the whole day. Bank of America Stadium is right there, the boys have been playing all morning and will love seeing the real thing at 7:30 PM. Grab dinner nearby before kickoff and make a full evening of it.</div>
-        <div class="chip-row"><span class="chip chip-neighborhood">Uptown</span><span class="chip chip-price">$$</span><span class="chip chip-saturday">Saturday</span><span class="chip chip-family">Family</span><span class="chip chip-event">Charlotte FC</span><span class="chip chip-invite">👋 Kyle Moore</span></div>
+        <div class="suggestion-title">Tipsy Pickle</div>
+        <div class="suggestion-desc">Saturday morning is a full gauntlet — Cam has soccer and t-ball back to back, then Will has soccer at 1:15 — so once the dust settles mid-afternoon, the last thing anyone wants is something that requires effort. Tipsy Pickle at Camp North End has pickleball, golf sims, and an arcade, which means the boys are entertained and you can decompress before the Charlotte FC match that night. No reservation needed, walk-in friendly.</div>
+        <div class="chip-row"><span class="chip chip-neighborhood">Camp North End</span><span class="chip chip-price">$$</span><span class="chip chip-saturday">Saturday</span><span class="chip chip-family">Family</span><span class="chip chip-invite">👋 Shelby Blackburn</span></div>
+    <div class="reservation-row">😔 Fully booked this weekend — try calling directly</div>
     <div class="feedback-row">
-      <button class="feedback-btn" onclick="handleFeedback(this,'event','Charlotte FC vs FC Cincinnati','love')"><span>❤️</span><span class="fb-label">Love</span></button>
-      <button class="feedback-btn" onclick="handleFeedback(this,'event','Charlotte FC vs FC Cincinnati','nope')"><span>👎</span><span class="fb-label">Nope</span></button>
-      <button class="feedback-btn" onclick="handleFeedback(this,'event','Charlotte FC vs FC Cincinnati','interested')"><span>👀</span><span class="fb-label">Interested</span></button>
-      <button class="feedback-btn" onclick="handleFeedback(this,'event','Charlotte FC vs FC Cincinnati','swap')"><span>🔄</span><span class="fb-label">Swap</span></button>
+      <button class="feedback-btn" onclick="handleFeedback(this,'restaurant','Tipsy Pickle','love')"><span>❤️</span><span class="fb-label">Love</span></button>
+      <button class="feedback-btn" onclick="handleFeedback(this,'restaurant','Tipsy Pickle','nope')"><span>👎</span><span class="fb-label">Nope</span></button>
+      <button class="feedback-btn" onclick="handleFeedback(this,'restaurant','Tipsy Pickle','interested')"><span>👀</span><span class="fb-label">Interested</span></button>
+      <button class="feedback-btn" onclick="handleFeedback(this,'restaurant','Tipsy Pickle','swap')"><span>🔄</span><span class="fb-label">Swap</span></button>
     </div>
       </div>
     </div>
@@ -439,7 +452,7 @@
       </div>
       <div class="coming-up-body">
         <div class="clear-banner">✅ Calendar looks clear</div>
-        <div class="coming-up-notes">This one's marked as a playoff rematch, which gives it extra juice — NYCFC matchups tend to be physical and high-energy, and you've got season tickets already locked. Mid-week Wednesday game, so worth thinking through logistics early.</div>
+        <div class="coming-up-notes">A playoff rematch on your season tickets — this one has extra juice with NYCFC coming to Bank of America just days after the FC Cincinnati game. Worth rallying the group for since the playoff stakes atmosphere carries over early in the season.</div>
         
     <div class="feedback-row">
       <button class="feedback-btn" onclick="handleFeedback(this,'event','Charlotte FC vs. NYCFC','love')"><span>❤️</span><span class="fb-label">Love</span></button>
@@ -463,7 +476,7 @@
       </div>
       <div class="coming-up-body">
         <div class="clear-banner">✅ Calendar looks clear</div>
-        <div class="coming-up-notes">Another home date with season tickets in hand — Toronto FC has been rebuilding but CLT has been strong at Bank of America this stretch. Good one to bring the boys to if schedules align on a Saturday.</div>
+        <div class="coming-up-notes">Another home date on the season ticket plan, Toronto FC makes for a reliable mid-week match without the chaos of a rivalry game — easy to rope in another family or a couple of friends for a low-key stadium night.</div>
         
     <div class="feedback-row">
       <button class="feedback-btn" onclick="handleFeedback(this,'event','Charlotte FC vs. Toronto FC','love')"><span>❤️</span><span class="fb-label">Love</span></button>
@@ -487,7 +500,7 @@
       </div>
       <div class="coming-up-body">
         <div class="clear-banner">✅ Calendar looks clear</div>
-        <div class="coming-up-notes">Uptown street festival with food, wine, and live music the weekend of May 17 — Will and Cam would have a blast, and with Festa Italiana on the calendar it's a natural follow to all the soccer and outdoor energy you'll have built up by then.</div>
+        <div class="coming-up-notes">Uptown Charlotte goes full Italian for a weekend — this is a great call for the boys given the food-festival format (no sitting still required) and it lines up well if you're already thinking about Festa as a precursor to Italy travel or just love an excuse for cannoli.</div>
         
     <div class="feedback-row">
       <button class="feedback-btn" onclick="handleFeedback(this,'event','Festa Italiana Charlotte','love')"><span>❤️</span><span class="fb-label">Love</span></button>
@@ -511,7 +524,7 @@
       </div>
       <div class="coming-up-body">
         <div class="clear-banner">✅ Calendar looks clear</div>
-        <div class="coming-up-notes">Late May home match on your season tickets — the Revolution have some history with CLT and this could be a rowdy crowd. Memorial Day weekend territory, so plan ahead if you want to make a bigger thing of it.</div>
+        <div class="coming-up-notes">Season tickets again with a late-May Saturday matchup — the weather should be prime outdoor stadium weather by then, and New England always brings a solid away crowd that adds to the atmosphere.</div>
         
     <div class="feedback-row">
       <button class="feedback-btn" onclick="handleFeedback(this,'event','Charlotte FC vs. New England Revolution','love')"><span>❤️</span><span class="fb-label">Love</span></button>
@@ -535,7 +548,7 @@
       </div>
       <div class="coming-up-body">
         <div class="clear-banner">✅ Calendar looks clear</div>
-        <div class="coming-up-notes">Lainey Wilson and Allen Stone opening at Bank of America Stadium — this is a proper summer night out. Stapleton at full tilt in an outdoor stadium setting is hard to beat, and the June 20 date is a great excuse for a date night dinner beforehand.</div>
+        <div class="coming-up-notes">Lainey Wilson and Allen Stone opening for Stapleton at Bank of America is basically a perfect Charlotte summer date night — this one's flagged as interested and it's the kind of show you don't want to accidentally miss tickets for. Worth locking in soon if you haven't.</div>
         
     <div class="feedback-row">
       <button class="feedback-btn" onclick="handleFeedback(this,'event','Chris Stapleton — All-American Road Show','love')"><span>❤️</span><span class="fb-label">Love</span></button>
@@ -559,7 +572,7 @@
       </div>
       <div class="coming-up-body">
         <div class="clear-banner">✅ Calendar looks clear</div>
-        <div class="coming-up-notes">The Southeast's biggest fireworks display at Truist Field on July 3rd — cheap, kid-friendly, and the boys will lose their minds. Get there early for a good spot and make it a whole evening.</div>
+        <div class="coming-up-notes">Truist Field on July 3rd for what's billed as the Southeast's biggest fireworks display — Will and Cam are going to lose their minds, and at $ pricing it's one of the best value family nights of the summer. Put it on the calendar now.</div>
         
     <div class="feedback-row">
       <button class="feedback-btn" onclick="handleFeedback(this,'event','SkyShow Fireworks','love')"><span>❤️</span><span class="fb-label">Love</span></button>
@@ -583,7 +596,7 @@
       </div>
       <div class="coming-up-body">
         <div class="clear-banner">✅ Calendar looks clear</div>
-        <div class="coming-up-notes">Drops of Jupiter 25th anniversary tour at Truliant Amphitheater — pure summer nostalgia and a great patio-drinks-before kind of evening. Not a kids show, so line up a sitter and make it a date night.</div>
+        <div class="coming-up-notes">Drops of Jupiter 25th anniversary at Truliant Amphitheater is a nostalgia hit — Barenaked Ladies as the opener makes this an unexpectedly stacked summer bill for a mid-tier price. Good date night candidate for a July Tuesday.</div>
         
     <div class="feedback-row">
       <button class="feedback-btn" onclick="handleFeedback(this,'event','Train w/ Barenaked Ladies & Matt Nathanson','love')"><span>❤️</span><span class="fb-label">Love</span></button>
@@ -607,7 +620,7 @@
       </div>
       <div class="coming-up-body">
         <div class="conflict-banner">⚠️ You have Charlotte FC vs Atlanta United (John) that day</div>
-        <div class="coming-up-notes">Post-World Cup return match with Atlanta United — always a rivalry crowd and the notes flag it as a big one. Already on John's calendar at 8 PM, so this one's locked in.</div>
+        <div class="coming-up-notes">Post-World Cup return with Atlanta United — the notes flag this is already on John's calendar, so it's locked. Atlanta rivalry games at home always have extra energy and this one should be a full-house summer night.</div>
         
     <div class="feedback-row">
       <button class="feedback-btn" onclick="handleFeedback(this,'event','Charlotte FC vs. Atlanta United','love')"><span>❤️</span><span class="fb-label">Love</span></button>

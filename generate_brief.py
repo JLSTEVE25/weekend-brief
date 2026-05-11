@@ -573,13 +573,17 @@ def check_date_night_availability(date_night_restaurants, reservation_index,
         party_size = r.get('party_size', 2)
 
         if not platform or not booking_url:
+            print(f"      {name}: skipped (no platform/URL)")
             return name, []
 
         if platform == 'Tock':
+            print(f"      {name}: skipped (Tock — no API)")
             return name, []
 
+        print(f"      {name}: checking {platform}…")
         slots = check_availability_apify(platform, booking_url, target_date,
                                          party_size, token)
+        print(f"      {name}: {len(slots)} slots found")
         return name, slots
 
     print(f"   Checking availability for {len(candidates)} date night picks…")

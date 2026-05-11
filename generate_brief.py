@@ -23,8 +23,10 @@ Optional: verify AIRTABLE_TABLE_* names match your actual Airtable base.
 import os
 import sys
 import json
+import time
 import datetime
 from zoneinfo import ZoneInfo
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 import anthropic
 
@@ -459,11 +461,13 @@ def parse_event_date_range(date_str):
     return (None, None)
 
 
-# ── Reservation Deep Links ───────────────────────────────────────────────────
+# ── Reservation Availability ───────────���─────────────────────────────────────
+
+APIFY_API_TOKEN = os.environ.get("APIFY_API_TOKEN", "")
+
 
 def build_reservation_index(restaurants):
-    """Build a dict keyed by restaurant Name with platform/URL/phone for deep links.
-    No scraping — just uses Airtable fields to generate booking links."""
+    """Build a dict keyed by restaurant Name with platform/URL/phone for deep links."""
     index = {}
     for r in restaurants:
         name = r.get('Name', '')
@@ -481,6 +485,164 @@ def build_reservation_index(restaurants):
             'error': 'no_platform' if not platform else None,
         }
     return index
+
+
+def check_availability_apify(platform, platform_url, date, party_size, token):
+    """Check one restaurant on one date via Apify. Returns list of time strings."""
+    if platform == 'Resy':
+        actor_id = 'clearpath~resy-api'
+        input_data = {
+            'startUrls': [platform_url],
+            'date': date.strftime('%Y-%m-%d'),
+            'partySize': party_size,
+            'includeAvailability': True,
+        }
+    elif platform == 'OpenTable':
+        actor_id = 'canadesk~opentable'
+        input_data = {
+            'startUrls': [platform_url],
+            'date': date.strftime('%Y-%m-%d'),
+            'partySize': party_size,
+        }
+    else:
+        return []
+
+    try:
+        run_resp = requests.post(
+            f'https://api.apify.com/v2/acts/{actor_id}/runs',
+            params={'token': token},
+            json=input_data,
+            timeout=15,
+        )
+        run_resp.raise_for_status()
+        run_id = run_resp.json()['data']['id']
+
+        for _ in range(12):
+            time.sleep(5)
+            status_resp = requests.get(
+                f'https://api.apify.com/v2/actor-runs/{run_id}',
+                params={'token': token},
+                timeout=10,
+            )
+            status = status_resp.json()['data']['status']
+            if status == 'SUCCEEDED':
+                break
+            if status in ('FAILED', 'ABORTED', 'TIMED-OUT'):
+                return []
+        else:
+            return []
+
+        items_resp = requests.get(
+            f'https://api.apify.com/v2/actor-runs/{run_id}/dataset/items',
+            params={'token': token},
+            timeout=10,
+        )
+        items = items_resp.json()
+
+        slots = []
+        for item in items:
+            time_str = item.get('time') or item.get('start', '')
+            if time_str:
+                slots.append(time_str)
+        return slots
+
+    except Exception as e:
+        print(f"   ⚠️  Apify check failed for {platform}: {e}")
+        return []
+
+
+def check_date_night_availability(date_night_restaurants, reservation_index,
+                                  target_date, token):
+    """Check availability for Claude's ranked restaurant picks.
+    Returns the list with _reservation data attached (slots or deep-link fallback).
+    Checks in parallel, then picks the first 3 with available slots."""
+    if not token:
+        return date_night_restaurants[:3]
+
+    candidates = date_night_restaurants[:5]
+    date_str = target_date.isoformat()
+
+    def _check(r):
+        name = r.get('name', '')
+        info = reservation_index.get(name, {})
+        platform = info.get('platform')
+        booking_url = info.get('booking_url', '')
+        phone = info.get('phone', '')
+        party_size = r.get('party_size', 2)
+
+        if not platform or not booking_url:
+            return name, []
+
+        if platform == 'Tock':
+            return name, []
+
+        slots = check_availability_apify(platform, booking_url, target_date,
+                                         party_size, token)
+        return name, slots
+
+    print(f"   Checking availability for {len(candidates)} date night picks…")
+    results = {}
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        futures = {pool.submit(_check, r): r for r in candidates}
+        for future in as_completed(futures):
+            try:
+                name, slots = future.result()
+                results[name] = slots
+            except Exception as e:
+                r = futures[future]
+                print(f"   ⚠️  Check failed for {r.get('name', '?')}: {e}")
+                results[r.get('name', '')] = []
+
+    # Pick first 3 with available slots; fill remainder with deep-link fallbacks
+    with_slots = []
+    without_slots = []
+    for r in candidates:
+        name = r.get('name', '')
+        slots = results.get(name, [])
+        if slots:
+            with_slots.append((r, slots))
+        else:
+            without_slots.append(r)
+
+    final = []
+    for r, slots in with_slots[:3]:
+        name = r.get('name', '')
+        info = reservation_index.get(name, {})
+        r['_reservation'] = {
+            'platform': info.get('platform'),
+            'booking_url': info.get('booking_url', ''),
+            'phone': info.get('phone', ''),
+            'error': None,
+            'friday_date': date_str,
+            'saturday_date': date_str,
+            'party_size': r.get('party_size', 2),
+            'friday_slots': slots if target_date.weekday() == 4 else [],
+            'saturday_slots': slots if target_date.weekday() == 5 else [],
+        }
+        final.append(r)
+
+    # Fill to 3 with fallbacks (deep link only)
+    for r in without_slots:
+        if len(final) >= 3:
+            break
+        name = r.get('name', '')
+        info = reservation_index.get(name, {})
+        r['_reservation'] = {
+            'platform': info.get('platform'),
+            'booking_url': info.get('booking_url', ''),
+            'phone': info.get('phone', ''),
+            'error': None,
+            'friday_date': date_str,
+            'saturday_date': date_str,
+            'party_size': r.get('party_size', 2),
+            'friday_slots': [],
+            'saturday_slots': [],
+        }
+        final.append(r)
+
+    available_count = len(with_slots)
+    print(f"   {available_count}/{len(candidates)} have open slots")
+    return final
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -666,7 +828,9 @@ If no free evening exists, set "date_night": null.
 Structure:
 - "intro_text": contextual sentence, e.g. "You're free Friday night. Consider a date night at:"
 - "target_day": "friday" or "saturday"
-- "restaurants": array of exactly 3 restaurant objects picked from the restaurant data. Each:
+- "restaurants": array of exactly 5 restaurant objects RANKED by preference (best first).
+  We check real-time availability and show the first 3 that have open tables.
+  Each object:
   - "name": exact Name field from the restaurant record
   - "data_record_id": the _record_id from the restaurant record
   - "neighborhood": from the record
@@ -674,7 +838,8 @@ Structure:
   - "vibe": one short phrase describing the experience (e.g. "Candlelit Southern steakhouse")
   - "party_size": 2 for a couple, 4 if suggesting a double date with friends
 
-Pick 3 restaurants that offer variety (different neighborhoods, cuisines, price points).
+Pick 5 restaurants that offer variety (different neighborhoods, cuisines, price points).
+Rank them best-fit first. The system will check availability and display the top 3 with open tables.
 
 ### 3. "coming_up_notes" — object keyed by event Name
 
@@ -741,20 +906,33 @@ Two young boys (Will and Cam). Mix of family days and date nights.
           f"date_night={'yes' if date_night else 'no'}, "
           f"{len(coming_up_notes)} coming-up notes")
 
-    # Attach reservation deep-link data to date night restaurants
+    # Check real-time availability for date night picks (top 3 with open tables)
     if date_night and date_night.get("restaurants"):
-        for r in date_night["restaurants"]:
-            name = r.get("name", "")
-            party_size = r.get("party_size", 2)
-            if name in reservation_data:
-                res = dict(reservation_data[name])
-            else:
-                res = {'error': 'no_platform', 'platform': None,
-                       'booking_url': None, 'phone': ''}
-            res['friday_date'] = friday.isoformat()
-            res['saturday_date'] = saturday.isoformat()
-            res['party_size'] = party_size
-            r["_reservation"] = res
+        target_day = date_night.get("target_day", "friday")
+        target_date = friday if target_day == "friday" else saturday
+
+        if APIFY_API_TOKEN:
+            print("🍽️  Checking availability for date night picks…")
+            date_night["restaurants"] = check_date_night_availability(
+                date_night["restaurants"], reservation_data,
+                target_date, APIFY_API_TOKEN)
+        else:
+            print("   ⚠️  APIFY_API_TOKEN not set — using deep links only.")
+            for r in date_night["restaurants"][:3]:
+                name = r.get("name", "")
+                info = reservation_data.get(name, {})
+                r["_reservation"] = {
+                    'platform': info.get('platform'),
+                    'booking_url': info.get('booking_url', ''),
+                    'phone': info.get('phone', ''),
+                    'error': None,
+                    'friday_date': friday.isoformat(),
+                    'saturday_date': saturday.isoformat(),
+                    'party_size': r.get('party_size', 2),
+                    'friday_slots': [],
+                    'saturday_slots': [],
+                }
+            date_night["restaurants"] = date_night["restaurants"][:3]
 
     # ── Render HTML from template ──
     html = render_html(weekend_label, weather, calendar_events, open_windows,

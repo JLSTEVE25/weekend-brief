@@ -211,6 +211,18 @@ def _render_dn_slots(reservation, target_day, date_str, party_size):
             return f'          <div class="dn-slots"><a href="tel:{phone}" class="reservation-link slot-pill">📞 Call to book</a></div>\n'
         return ''
 
+    # Check for actual time slots from availability check
+    slots_key = f'{target_day}_slots'
+    slots = reservation.get(slots_key, [])
+
+    if slots:
+        slot_links = []
+        for slot in slots[:4]:
+            link = build_booking_link(platform, booking_url, date_str, slot, party_size)
+            slot_links.append(f'<a href="{link}" target="_blank" class="slot-pill">{slot}</a>')
+        return f'          <div class="dn-slots">{" ".join(slot_links)}</div>\n'
+
+    # Fallback to generic deep link
     if booking_url:
         link = build_booking_link(platform, booking_url, date_str, party_size=party_size)
         return f'          <div class="dn-slots"><a href="{link}" target="_blank" class="slot-pill">Book on {platform} →</a></div>\n'

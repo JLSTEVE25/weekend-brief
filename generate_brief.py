@@ -515,23 +515,27 @@ def check_availability_apify(platform, platform_url, date, party_size, token):
             timeout=15,
         )
         if run_resp.status_code != 201:
-            print(f"   ⚠️  Apify start failed ({run_resp.status_code}): {run_resp.text[:200]}")
+            print(f"      ⚠️  Apify start failed ({run_resp.status_code}): {run_resp.text[:200]}")
             return []
         run_id = run_resp.json()['data']['id']
 
-        for _ in range(12):
+        for attempt in range(12):
             time.sleep(5)
             status_resp = requests.get(
                 f'https://api.apify.com/v2/actor-runs/{run_id}',
                 params={'token': token},
                 timeout=10,
             )
-            status = status_resp.json()['data']['status']
+            run_data = status_resp.json()['data']
+            status = run_data['status']
             if status == 'SUCCEEDED':
                 break
             if status in ('FAILED', 'ABORTED', 'TIMED-OUT'):
+                msg = run_data.get('statusMessage', '')
+                print(f"      ⚠️  Apify run {status}: {msg[:150]}")
                 return []
         else:
+            print(f"      ⚠️  Apify run timed out after {attempt+1} polls")
             return []
 
         items_resp = requests.get(

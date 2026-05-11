@@ -492,7 +492,7 @@ def check_availability_apify(platform, platform_url, date, party_size, token):
     if platform == 'Resy':
         actor_id = 'clearpath~resy-api'
         input_data = {
-            'startUrls': [platform_url],
+            'startUrls': [{'url': platform_url}],
             'date': date.strftime('%Y-%m-%d'),
             'partySize': party_size,
             'includeAvailability': True,
@@ -500,7 +500,7 @@ def check_availability_apify(platform, platform_url, date, party_size, token):
     elif platform == 'OpenTable':
         actor_id = 'canadesk~opentable'
         input_data = {
-            'startUrls': [platform_url],
+            'startUrls': [{'url': platform_url}],
             'date': date.strftime('%Y-%m-%d'),
             'partySize': party_size,
         }
@@ -514,7 +514,9 @@ def check_availability_apify(platform, platform_url, date, party_size, token):
             json=input_data,
             timeout=15,
         )
-        run_resp.raise_for_status()
+        if run_resp.status_code != 201:
+            print(f"   ⚠️  Apify start failed ({run_resp.status_code}): {run_resp.text[:200]}")
+            return []
         run_id = run_resp.json()['data']['id']
 
         for _ in range(12):

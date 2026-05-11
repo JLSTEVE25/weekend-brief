@@ -23,10 +23,8 @@ Optional: verify AIRTABLE_TABLE_* names match your actual Airtable base.
 import os
 import sys
 import json
-import time
 import datetime
 from zoneinfo import ZoneInfo
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 import anthropic
 
@@ -49,8 +47,6 @@ ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 
 CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
 
-# Apify API — optional; if not set, reservation availability is skipped.
-APIFY_API_TOKEN = os.environ.get("APIFY_API_TOKEN", "")
 
 # Google Apps Script feedback endpoint — set once deployed (GitHub Secret: FEEDBACK_ENDPOINT).
 FEEDBACK_ENDPOINT = os.environ.get("FEEDBACK_ENDPOINT", "")
@@ -463,145 +459,28 @@ def parse_event_date_range(date_str):
     return (None, None)
 
 
-# ── Reservation Availability (Apify) ─────────────────────────────────────────
+# ── Reservation Deep Links ───────────────────────────────────────────────────
 
-def query_apify(platform, url, date, token, party_size=4):
-    """Call an Apify Actor to get reservation slots for one restaurant on one date.
-    Returns a list of time strings like ['7:00 PM', '7:30 PM']."""
-    if platform == 'Resy':
-        actor_id = 'clearpath~resy-api'
-        input_data = {
-            'urls': [url],
-            'date': date.strftime('%Y-%m-%d'),
-            'partySize': party_size,
-            'includeAvailability': True,
-        }
-    elif platform == 'OpenTable':
-        actor_id = 'canadesk~opentable'
-        input_data = {
-            'urls': [url],
-            'date': date.strftime('%Y-%m-%d'),
-            'partySize': party_size,
-        }
-    else:
-        return []
-
-    try:
-        run_resp = requests.post(
-            f'https://api.apify.com/v2/acts/{actor_id}/runs',
-            params={'token': token},
-            json=input_data,
-            timeout=15,
-        )
-        run_resp.raise_for_status()
-        run_id = run_resp.json()['data']['id']
-
-        for _ in range(12):
-            time.sleep(5)
-            status_resp = requests.get(
-                f'https://api.apify.com/v2/actor-runs/{run_id}',
-                params={'token': token},
-                timeout=10,
-            )
-            status = status_resp.json()['data']['status']
-            if status == 'SUCCEEDED':
-                break
-            if status in ('FAILED', 'ABORTED', 'TIMED-OUT'):
-                return []
-        else:
-            return []
-
-        items_resp = requests.get(
-            f'https://api.apify.com/v2/actor-runs/{run_id}/dataset/items',
-            params={'token': token},
-            timeout=10,
-        )
-        items = items_resp.json()
-
-        slots = []
-        for item in items:
-            time_str = item.get('time') or item.get('start', '')
-            if time_str:
-                slots.append(time_str)
-        return slots
-
-    except Exception as e:
-        print(f"   ⚠️  Apify query failed for {platform}: {e}")
-        return []
-
-
-def get_reservation_times(restaurant, friday, saturday, apify_token):
-    """Check reservation availability for one restaurant on Friday + Saturday.
-    Returns a dict with slots, platform info, and error state."""
-    platform = restaurant.get('Reservation_Platform', 'None')
-    platform_url = restaurant.get('Platform_URL', '')
-    phone = restaurant.get('Phone', '')
-
-    if platform in ('None', '', None) or not platform_url:
-        return {
-            'friday_slots': [],
-            'saturday_slots': [],
-            'platform': None,
-            'booking_url': None,
-            'phone': phone,
-            'error': 'no_platform',
-        }
-
-    if platform == 'Tock':
-        return {
-            'friday_slots': [],
-            'saturday_slots': [],
-            'platform': 'Tock',
+def build_reservation_index(restaurants):
+    """Build a dict keyed by restaurant Name with platform/URL/phone for deep links.
+    No scraping — just uses Airtable fields to generate booking links."""
+    index = {}
+    for r in restaurants:
+        name = r.get('Name', '')
+        if not name:
+            continue
+        platform = r.get('Reservation_Platform', '')
+        platform_url = r.get('Platform_URL', '')
+        phone = r.get('Phone', '')
+        if platform in ('None', '', None):
+            platform = None
+        index[name] = {
+            'platform': platform,
             'booking_url': platform_url,
             'phone': phone,
-            'error': 'tock_no_scrape',
+            'error': 'no_platform' if not platform else None,
         }
-
-    friday_slots = query_apify(platform, platform_url, friday, apify_token)
-    saturday_slots = query_apify(platform, platform_url, saturday, apify_token)
-
-    return {
-        'friday_slots': friday_slots,
-        'saturday_slots': saturday_slots,
-        'platform': platform,
-        'booking_url': platform_url,
-        'phone': phone,
-        'error': None,
-    }
-
-
-def fetch_all_reservations(restaurants, friday, saturday, apify_token):
-    """Query reservation availability for all restaurants in parallel.
-    Returns a dict keyed by restaurant Name."""
-    results = {}
-
-    candidates = [
-        r for r in restaurants
-        if r.get('Reservation_Platform', 'None') not in ('None', '', None)
-        and r.get('Platform_URL')
-    ]
-
-    if not candidates:
-        return results
-
-    print(f"   Checking reservations for {len(candidates)} restaurants…")
-
-    def _query(r):
-        return r.get('Name', ''), get_reservation_times(r, friday, saturday, apify_token)
-
-    with ThreadPoolExecutor(max_workers=5) as pool:
-        futures = {pool.submit(_query, r): r for r in candidates}
-        for future in as_completed(futures):
-            try:
-                name, data = future.result()
-                if name:
-                    results[name] = data
-            except Exception as e:
-                r = futures[future]
-                print(f"   ⚠️  Reservation check failed for {r.get('Name', '?')}: {e}")
-
-    print(f"   Got reservation data for {len(results)} restaurants")
-    return results
+    return index
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -684,13 +563,8 @@ def main():
     open_windows    = find_open_windows(calendar_events, friday, saturday, sunday)
     print(f"   Open windows: {len(open_windows)}")
 
-    # ── Reservation availability (Apify) ──
-    reservation_data = {}
-    if APIFY_API_TOKEN:
-        print("🍽️  Checking reservation availability…")
-        reservation_data = fetch_all_reservations(restaurants, friday, saturday, APIFY_API_TOKEN)
-    else:
-        print("   ⚠️  APIFY_API_TOKEN not set — skipping reservation checks.")
+    # ── Reservation deep links (from Airtable platform fields) ──
+    reservation_data = build_reservation_index(restaurants)
 
     # ── Filter Airtable events ──
     today = datetime.date.today()
@@ -832,8 +706,6 @@ Two young boys (Will and Cam). Mix of family days and date nights.
 ## FRIENDS / FAMILIES (for "who to invite" callouts)
 {json.dumps(friends_summary, indent=2)}
 
-## RESERVATION AVAILABILITY (for restaurants with online booking)
-{json.dumps(reservation_data, indent=2) if reservation_data else "No reservation data available — APIFY_API_TOKEN not configured."}
 """
 
     print(f"🤖 Calling Claude API for content JSON (model: {CLAUDE_MODEL})…")
@@ -869,7 +741,7 @@ Two young boys (Will and Cam). Mix of family days and date nights.
           f"date_night={'yes' if date_night else 'no'}, "
           f"{len(coming_up_notes)} coming-up notes")
 
-    # Attach reservation data to date night restaurants
+    # Attach reservation deep-link data to date night restaurants
     if date_night and date_night.get("restaurants"):
         for r in date_night["restaurants"]:
             name = r.get("name", "")
@@ -877,8 +749,8 @@ Two young boys (Will and Cam). Mix of family days and date nights.
             if name in reservation_data:
                 res = dict(reservation_data[name])
             else:
-                res = {'error': None, 'friday_slots': [], 'saturday_slots': [],
-                       'platform': None, 'booking_url': None, 'phone': ''}
+                res = {'error': 'no_platform', 'platform': None,
+                       'booking_url': None, 'phone': ''}
             res['friday_date'] = friday.isoformat()
             res['saturday_date'] = saturday.isoformat()
             res['party_size'] = party_size

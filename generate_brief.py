@@ -657,19 +657,25 @@ def check_date_night_availability(date_night_restaurants, reservation_index,
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def is_correct_schedule_slot(expected_et_hour):
-    """For scheduled GitHub Actions runs, only proceed if the current ET hour matches.
+def is_correct_schedule_slot(edt_cron, est_cron):
+    """For scheduled GitHub Actions runs, proceed only on the DST-correct cron.
 
-    We deploy two crons (EDT + EST) so a 10am ET run actually lands at 10am ET
-    year-round. Whichever one fires at the wrong UTC offset exits cleanly.
-    Manual runs (workflow_dispatch) always proceed.
+    We deploy two crons (one for EDT, one for EST) so the brief lands at the
+    right ET time year-round. GitHub often runs scheduled jobs hours late, so we
+    can't gate on the wall-clock hour. Instead we check which cron actually
+    fired — github.event.schedule, passed in as SCHEDULE_CRON — against the one
+    that matches the current DST offset. Manual runs (workflow_dispatch) always
+    proceed.
     """
     if os.environ.get("GITHUB_EVENT_NAME", "") != "schedule":
         return True
-    now_et = datetime.datetime.now(ET)
-    if now_et.hour == expected_et_hour:
+    is_dst = bool(datetime.datetime.now(ET).dst())
+    canonical = edt_cron if is_dst else est_cron
+    fired = " ".join(os.environ.get("SCHEDULE_CRON", "").split())
+    if fired == canonical:
         return True
-    print(f"⏭️  Scheduled run at {now_et.strftime('%H:%M %Z')} — not the {expected_et_hour:02d}:00 ET slot, exiting.")
+    print(f"⏭️  Scheduled run via cron '{fired}' — not the active-DST slot "
+          f"'{canonical}', exiting.")
     return False
 
 
@@ -701,7 +707,7 @@ def render_html(weekend_label, weather, calendar_events, open_windows,
 
 
 def main():
-    if not is_correct_schedule_slot(4):
+    if not is_correct_schedule_slot('0 8 * * 1', '0 9 * * 1'):
         sys.exit(0)
 
     print("📡 Fetching Airtable data…")

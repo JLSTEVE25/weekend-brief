@@ -58,6 +58,7 @@ jobs:
           GOOGLE_CLIENT_SECRET:  ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN:  ${{ secrets.GOOGLE_REFRESH_TOKEN }}
           APIFY_API_TOKEN:       ${{ secrets.APIFY_API_TOKEN }}
+          SCHEDULE_CRON:         ${{ github.event.schedule }}
         run: python generate_brief.py
 
       - name: Commit and push updated brief

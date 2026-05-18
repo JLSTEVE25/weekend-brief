@@ -243,19 +243,28 @@ def send_email(creds, subject, body, recipients):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def is_correct_schedule_slot(expected_et_hour):
-    """Mirror of the Monday-brief gate: skip schedule firings outside the target ET hour."""
+def is_correct_schedule_slot(edt_cron, est_cron):
+    """Mirror of the Monday-brief gate: proceed only on the DST-correct cron.
+
+    Two crons are deployed (one for EDT, one for EST). GitHub often runs
+    scheduled jobs hours late, so we gate on which cron fired (SCHEDULE_CRON,
+    from github.event.schedule) rather than the wall-clock hour. Manual runs
+    (workflow_dispatch) always proceed.
+    """
     if os.environ.get("GITHUB_EVENT_NAME", "") != "schedule":
         return True
-    now_et = datetime.datetime.now(ET)
-    if now_et.hour == expected_et_hour:
+    is_dst = bool(datetime.datetime.now(ET).dst())
+    canonical = edt_cron if is_dst else est_cron
+    fired = " ".join(os.environ.get("SCHEDULE_CRON", "").split())
+    if fired == canonical:
         return True
-    print(f"⏭️  Scheduled run at {now_et.strftime('%H:%M %Z')} — not the {expected_et_hour:02d}:00 ET slot, exiting.")
+    print(f"⏭️  Scheduled run via cron '{fired}' — not the active-DST slot "
+          f"'{canonical}', exiting.")
     return False
 
 
 def main():
-    if not is_correct_schedule_slot(19):
+    if not is_correct_schedule_slot('0 23 * * 4', '0 0 * * 5'):
         sys.exit(0)
 
     print("📋 Fetching Feedback Log from Airtable…")

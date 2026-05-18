@@ -47,6 +47,7 @@ jobs:
           GOOGLE_CLIENT_ID:      ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET:  ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN:  ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          SCHEDULE_CRON:         ${{ github.event.schedule }}
         run: python thursday_recap.py
 
       - name: Notify on failure
